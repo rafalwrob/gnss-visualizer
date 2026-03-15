@@ -179,6 +179,9 @@ npx vitest run     # testy
 npm run build      # dist/
 ```
 
-## GitHub
+## GitHub i commity
 
-https://github.com/rafalwrob/gnss-visualizer
+Repozytorium: https://github.com/rafalwrob/gnss-visualizer
+
+**Po każdej zakończonej zmianie rób commit automatycznie** — nie czekaj na polecenie.
+Używaj prefiksów: `feat:`, `fix:`, `perf:`, `refactor:`, `docs:`.
