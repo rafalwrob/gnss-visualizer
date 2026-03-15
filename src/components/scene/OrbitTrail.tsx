@@ -20,7 +20,7 @@ interface OrbitTrailProps {
  * ECI: statyczna pełna elipsa obliczona raz (z useMemo).
  * ECEF: imperatywna aktualizacja geometrii w useFrame co 8 klatek.
  */
-export function OrbitTrail({ eph, color, harmonics, useEcef }: OrbitTrailProps) {
+export function OrbitTrail({ eph, color, harmonics }: OrbitTrailProps) {
   const frame = useRef(0);
 
   // Wstępnie alokowany bufor pozycji — nigdy nie tworzony od nowa

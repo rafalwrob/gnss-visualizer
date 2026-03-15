@@ -4,6 +4,9 @@ import { TextureLoader } from 'three';
 import * as THREE from 'three';
 import { anim } from './animState';
 import { OMEGA_E } from '../../constants/gnss';
+import earthDaymap from '../../assets/textures/earth_daymap.jpg';
+import earthNormal from '../../assets/textures/earth_normal.jpg';
+import earthSpecular from '../../assets/textures/earth_specular.jpg';
 
 /** Skala: 1 jednostka R3F = R_E (6 378 137 m) */
 export const SCENE_SCALE = 1 / 6378137;
@@ -24,9 +27,9 @@ function EarthTextured() {
   useEarthRotation(meshRef);
 
   const [colorMap, normalMap, specularMap] = useLoader(TextureLoader, [
-    '/textures/earth_daymap.jpg',
-    '/textures/earth_normal.jpg',
-    '/textures/earth_specular.jpg',
+    earthDaymap,
+    earthNormal,
+    earthSpecular,
   ]);
 
   return (

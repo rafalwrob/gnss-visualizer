@@ -202,7 +202,6 @@ function buildSBAS(): SatelliteRecord[] {
   const c = PLANE_COLORS.sbas;
   // Reprezentatywne długości geograficzne satelitów SBAS (WAAS, EGNOS, MSAS, GAGAN)
   const lons = [133.9, 107.3, -107.3, 15.5, 21.5, -15.5, 140, 145, 83];
-  const names = ['W133', 'W107', 'W253', 'E15', 'E21', 'E345', 'M140', 'M145', 'G83'];
   return lons.map((lon, k) =>
     sat(`S${String(k + 1).padStart(2, '0')}`, 'sbas', k, c[k % c.length],
       { a: 42164000, e: 0.0001, i0: D(0.5), Omega0: D(lon < 0 ? lon + 360 : lon), OmegaDot: 0 }
