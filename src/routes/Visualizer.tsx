@@ -3,6 +3,7 @@ import { TimeControl } from '../components/panels/TimeControl';
 import { SystemPanel } from '../components/panels/SystemPanel';
 import { OrbitalElements } from '../components/panels/OrbitalElements';
 import { SatelliteList } from '../components/panels/SatelliteList';
+import { SatelliteDetailPanel } from '../components/panels/SatelliteDetailPanel';
 import { KeplerStepper } from '../components/education/KeplerStepper';
 import { useUiStore } from '../store/uiStore';
 import type { LeftTab } from '../store/uiStore';
@@ -23,7 +24,7 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
 
 export function Visualizer() {
   const {
-    showHarmonics, useEcef, showGroundTrack,
+    showHarmonics, useEcef, showGroundTrack, onlineMode,
     setShowHarmonics, setUseEcef, setShowGroundTrack,
     activeTab, setActiveTab,
   } = useUiStore();
@@ -43,7 +44,15 @@ export function Visualizer() {
 
         {/* Nagłówek */}
         <div className="pb-2 border-b border-[#21262d]">
-          <div className="text-[#58a6ff] font-bold text-sm tracking-wider font-mono">GNSS Visualizer</div>
+          <div className="flex items-center justify-between">
+            <div className="text-[#58a6ff] font-bold text-sm tracking-wider font-mono">GNSS Visualizer</div>
+            {onlineMode && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#0d2a1a] border border-[#238636] text-[#3fb950] text-[9px] font-bold font-mono">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse inline-block" />
+                LIVE
+              </span>
+            )}
+          </div>
           <div className="text-[#6e7681] text-[9px] font-mono">3D Satellite Navigator · α</div>
         </div>
 
@@ -124,6 +133,9 @@ export function Visualizer() {
           GNSS Visualizer α · Faza 1
         </div>
       </div>
+
+      {/* Prawy panel — szczegóły satelity */}
+      <SatelliteDetailPanel />
     </div>
   );
 }

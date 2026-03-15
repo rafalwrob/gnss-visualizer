@@ -41,7 +41,9 @@ export function SystemPanel() {
     setFetchError('');
     fetchGpsConstellation()
       .then(sats => {
+        // Ustaw origin PRZED włączeniem realtimeClock — unikamy timeSec=1.7B
         anim.realtimeOriginMs = Date.now();
+        anim.realtimeClock = true;
         setSatellites(sats);
         setMode('constellation');
         setFetchState('ok');
@@ -56,10 +58,11 @@ export function SystemPanel() {
   function handleOnlineToggle() {
     if (onlineMode) {
       setOnlineMode(false);
+      anim.realtimeClock = false;  // wyłącz realtime clock
       setFetchState('idle');
     } else {
       setOnlineMode(true);
-      // activeSystem może nie być GPS — obsłużone w useEffect powyżej
+      // realtimeClock włączy się dopiero po fetch (w .then) — bezpieczna kolejność
     }
   }
 
@@ -69,6 +72,7 @@ export function SystemPanel() {
     fetchGpsConstellation()
       .then(sats => {
         anim.realtimeOriginMs = Date.now();
+        anim.realtimeClock = true;
         setSatellites(sats);
         setFetchState('ok');
         setCacheAge(0);

@@ -25,7 +25,7 @@ function SceneController() {
   useEffect(() => { anim.showHarmonics = showHarmonics; }, [showHarmonics]);
   useEffect(() => { anim.useEcef = useEcef; }, [useEcef]);
   useEffect(() => { anim.traceHours = traceHours; }, [traceHours]);
-  useEffect(() => { anim.realtimeClock = onlineMode; }, [onlineMode]);
+  // realtimeClock NIE jest tutaj syncowany — ustawia go SystemPanel dopiero po udanym fetchu
 
   // Suwak UI → anim.timeSec (tylko gdy NIE animujemy i NIE realtime)
   useEffect(() => {
