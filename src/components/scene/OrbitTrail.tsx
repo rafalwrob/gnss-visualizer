@@ -13,6 +13,8 @@ interface OrbitTrailProps {
   color: string;
   harmonics: boolean;
   useEcef: boolean;
+  selected?: boolean;
+  dimmed?: boolean;
 }
 
 /**
@@ -22,7 +24,7 @@ interface OrbitTrailProps {
  * ECEF: roseta śladów naziemnych.
  * Aktualizacja geometrii co 8 klatek (~7.5 Hz przy 60fps).
  */
-export function OrbitTrail({ eph, color, harmonics }: OrbitTrailProps) {
+export function OrbitTrail({ eph, color, harmonics, selected = false, dimmed = false }: OrbitTrailProps) {
   // start=7 → pierwsza klatka useFrame od razu wykonuje aktualizację (8%8=0)
   const frame = useRef(7);
 
@@ -65,6 +67,11 @@ export function OrbitTrail({ eph, color, harmonics }: OrbitTrailProps) {
 
   // Aktualizacja co 8 klatek — ECI i ECEF obsługiwane jednakowo
   useFrame(() => {
+    // Opacity/waga linii na podstawie zaznaczenia — imperatywna, zero re-renderów
+    const mat = lineObj.material as THREE.LineBasicMaterial;
+    const opacity = selected ? 1.0 : dimmed ? 0.18 : 0.6;
+    if (mat.opacity !== opacity) mat.opacity = opacity;
+
     frame.current++;
     if (frame.current % 8 !== 0) return;
 

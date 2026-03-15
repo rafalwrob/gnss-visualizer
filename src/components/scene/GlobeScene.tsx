@@ -88,6 +88,8 @@ function SceneContent() {
             color={sat.color}
             harmonics={showHarmonics}
             useEcef={useEcef}
+            selected={i === selectedIndex}
+            dimmed={selectedIndex >= 0 && i !== selectedIndex}
           />
           {showGroundTrack && (
             <EarthAligned>
