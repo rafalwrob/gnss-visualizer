@@ -12,6 +12,7 @@ import type { ProtocolAdapter, ParsedData } from '../../services/parsers/protoco
 import type { GnssSystem } from '../../types/satellite';
 import { SkyPlot } from './SkyPlot';
 import { RawDataPanel } from './RawDataPanel';
+import { ProtocolBuilder } from './ProtocolBuilder';
 
 function formatPrn(system: GnssSystem, prn: number): string {
   const prefix: Record<GnssSystem, string> = {
@@ -46,6 +47,7 @@ export function ReceiverPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pluginInputRef = useRef<HTMLInputElement>(null);
   const [fileReading, setFileReading] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
 
   function getAdapter(): ProtocolAdapter {
     if (store.activeProtocol === 'ubx') return new UbxAdapter();
@@ -136,6 +138,7 @@ export function ReceiverPanel() {
 
   return (
     <div className="space-y-2 font-mono">
+      {showBuilder && <ProtocolBuilder onClose={() => setShowBuilder(false)} />}
 
       {/* Wybór protokołu */}
       <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
@@ -208,12 +211,20 @@ export function ReceiverPanel() {
       {/* Plugin */}
       <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
         <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-2">Plugin protokołu (.js)</div>
-        <button
-          onClick={() => pluginInputRef.current?.click()}
-          className="w-full py-1.5 rounded text-[10px] border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:border-[#58a6ff]"
-        >
-          📦 Załaduj protokół .js
-        </button>
+        <div className="flex gap-1 mb-2">
+          <button
+            onClick={() => pluginInputRef.current?.click()}
+            className="flex-1 py-1.5 rounded text-[10px] border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:border-[#58a6ff]"
+          >
+            📦 Załaduj .js
+          </button>
+          <button
+            onClick={() => setShowBuilder(true)}
+            className="flex-1 py-1.5 rounded text-[10px] border border-[#1f6feb]/60 bg-[#1f6feb]/10 text-[#58a6ff] hover:bg-[#1f6feb]/20"
+          >
+            🔧 Kreator
+          </button>
+        </div>
         <input
           ref={pluginInputRef}
           type="file"
