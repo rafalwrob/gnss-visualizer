@@ -1,18 +1,21 @@
 import { useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
+import * as THREE from 'three';
 import { Earth } from './Earth';
 import { SatelliteMarker } from './SatelliteMarker';
 import { OrbitTrail } from './OrbitTrail';
+import { GroundTrack } from './GroundTrack';
 import { anim } from './animState';
 import { useSatelliteStore } from '../../store/satelliteStore';
 import { useTimeStore } from '../../store/timeStore';
 import { useUiStore } from '../../store/uiStore';
+import { OMEGA_E } from '../../constants/gnss';
 
 /** Synchronizuje mutable anim{} z Zustand stores oraz obsługuje pętlę animacji */
 function SceneController() {
-  const { animating, animSpeed, timeHours, setTimeHours } = useTimeStore();
-  const { showHarmonics, useEcef, traceHours } = useUiStore();
+  const { animating, animSpeed, timeHours, traceHours, setTimeHours } = useTimeStore();
+  const { showHarmonics, useEcef } = useUiStore();
 
   const frameCount = useRef(0);
 
@@ -45,10 +48,23 @@ function SceneController() {
   return null;
 }
 
+/**
+ * Wrapper który obraca dzieci dokładnie tak samo jak siatka Ziemi.
+ * Punkty ECEF wewnątrz stają się ECI: R_y(OMEGA_E*t) * P_ecef = P_eci.
+ * W ECEF: rotation=0 (Ziemia stoi, punkty ECEF = world space).
+ */
+function EarthAligned({ children }: { children: React.ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null!);
+  useFrame(() => {
+    groupRef.current.rotation.y = anim.useEcef ? 0 : OMEGA_E * anim.timeSec;
+  });
+  return <group ref={groupRef}>{children}</group>;
+}
+
 /** Zawartość sceny 3D */
 function SceneContent() {
   const { satellites, selectedIndex, mode, singleEph, selectSatellite } = useSatelliteStore();
-  const { showHarmonics } = useUiStore();
+  const { showHarmonics, showGroundTrack, useEcef } = useUiStore();
 
   const sats = mode === 'constellation' ? satellites : [];
 
@@ -68,7 +84,13 @@ function SceneContent() {
             eph={sat.eph}
             color={sat.color}
             harmonics={showHarmonics}
+            useEcef={useEcef}
           />
+          {showGroundTrack && (
+            <EarthAligned>
+              <GroundTrack eph={sat.eph} color={sat.color} harmonics={showHarmonics} />
+            </EarthAligned>
+          )}
           <SatelliteMarker
             eph={sat.eph}
             color={sat.color}
@@ -80,7 +102,12 @@ function SceneContent() {
 
       {mode === 'single' && (
         <group>
-          <OrbitTrail eph={singleEph} color="#1f6feb" harmonics={showHarmonics} />
+          <OrbitTrail eph={singleEph} color="#1f6feb" harmonics={showHarmonics} useEcef={useEcef} />
+          {showGroundTrack && (
+            <EarthAligned>
+              <GroundTrack eph={singleEph} color="#ffcc00" harmonics={showHarmonics} />
+            </EarthAligned>
+          )}
           <SatelliteMarker eph={singleEph} color="#ffcc00" selected />
         </group>
       )}

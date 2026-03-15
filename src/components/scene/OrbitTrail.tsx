@@ -1,82 +1,79 @@
-import { useMemo, useRef } from 'react';
+import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { computeGPSPosition, orbitalPeriod } from '../../services/orbital/keplerMath';
-import { MU } from '../../constants/gnss';
 import type { KeplerianEphemeris } from '../../types/ephemeris';
 import { SCENE_SCALE } from './Earth';
 import { anim } from './animState';
+
+const SEGS = 90;
 
 interface OrbitTrailProps {
   eph: KeplerianEphemeris;
   color: string;
   harmonics: boolean;
+  useEcef: boolean;
 }
 
-/** Liczba segmentów pełnej orbity — 2× dla obsługi zawijania indeksów */
-const SEGMENTS = 360;
+/**
+ * Ślad orbity — zero subskrypcji Zustand, zero React re-renderów od czasu.
+ * ECI: statyczna pełna elipsa obliczona raz (z useMemo).
+ * ECEF: imperatywna aktualizacja geometrii w useFrame co 8 klatek.
+ */
+export function OrbitTrail({ eph, color, harmonics, useEcef }: OrbitTrailProps) {
+  const frame = useRef(0);
 
-export function OrbitTrail({ eph, color, harmonics }: OrbitTrailProps) {
-  const lineRef = useRef<THREE.Line>(null!);
+  // Wstępnie alokowany bufor pozycji — nigdy nie tworzony od nowa
+  const posArr = useMemo(() => new Float32Array((SEGS + 1) * 3), []);
 
-  /**
-   * Prekomputacja pełnej orbity w ECI — wykonywana TYLKO gdy eph / harmonics zmienią się.
-   * NIE zależy od czasu bieżącego (tSec) → geometria nie jest przebudowywana przy każdej klatce.
-   *
-   * Bufor zdwojony (2×SEGMENTS): ułatwia drawRange bez zawijania.
-   */
-  const { geometry, period, n0 } = useMemo(() => {
+  // Natywny Three.js line — wielokrotnie tańszy od drei Line2 (fat line mesh)
+  const lineObj = useMemo(() => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(posArr, 3));
+    const mat = new THREE.LineBasicMaterial({ color, opacity: 0.75, transparent: true });
+    return new THREE.Line(geo, mat);
+  }, [color]); // przebuduj tylko gdy zmienia się kolor
+
+  // Zwolnij GPU przy odmontowaniu / zmianie koloru
+  useEffect(() => {
+    return () => {
+      lineObj.geometry.dispose();
+      (lineObj.material as THREE.Material).dispose();
+    };
+  }, [lineObj]);
+
+  // ECI: policz pełną elipsę raz gdy zmienia się efemerida lub harmoniki
+  useMemo(() => {
     const period = orbitalPeriod(eph.a);
-    const dt = period / SEGMENTS;
-    const n0 = Math.sqrt(MU / Math.pow(eph.a, 3));
-
-    // 2 kopie orbity w buforze → drawRange może zawierać do SEGMENTS ciągłych punktów
-    const positions = new Float32Array(SEGMENTS * 2 * 3);
-    for (let copy = 0; copy < 2; copy++) {
-      for (let k = 0; k < SEGMENTS; k++) {
-        const t = k * dt;
-        const pos = computeGPSPosition(eph, t, false, harmonics); // zawsze ECI
-        const i = (copy * SEGMENTS + k) * 3;
-        positions[i + 0] = pos.x * SCENE_SCALE;
-        positions[i + 1] = pos.z * SCENE_SCALE;
-        positions[i + 2] = -pos.y * SCENE_SCALE;
-      }
+    for (let k = 0; k <= SEGS; k++) {
+      const t = (k / SEGS) * period;
+      const pos = computeGPSPosition(eph, t, false, harmonics);
+      posArr[k * 3]     = pos.x * SCENE_SCALE;
+      posArr[k * 3 + 1] = pos.z * SCENE_SCALE;
+      posArr[k * 3 + 2] = -pos.y * SCENE_SCALE;
     }
+    if (lineObj.geometry.attributes.position) {
+      lineObj.geometry.attributes.position.needsUpdate = true;
+    }
+  }, [eph, harmonics]); // celowo pomijamy posArr/lineObj (stable refs)
 
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    g.setDrawRange(0, SEGMENTS);
-    return { geometry: g, period, n0 };
-  }, [eph, harmonics]); // ← brak tSec!
-
-  const material = useMemo(
-    () => new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8, linewidth: 2 }),
-    [color],
-  );
-
-  const lineObject = useMemo(() => new THREE.Line(geometry, material), [geometry, material]);
-
-  /** Per-frame: TYLKO aktualizacja drawRange — O(1), zero obliczeń orbitalnych */
+  // ECEF: aktualizacja co 8 klatek (~7.5 Hz przy 60fps)
   useFrame(() => {
-    if (!lineRef.current) return;
-    const tSec = anim.timeSec;
+    if (!anim.useEcef) return;
+    frame.current++;
+    if (frame.current % 8 !== 0) return;
+
+    const timeSec = anim.timeSec;
     const traceSec = anim.traceHours * 3600;
-
-    // Pozycja satelity na orbicie: M = M0 + n*t → faza [0, 2π)
-    const M = eph.M0 + n0 * tSec;
-    const phase = ((M % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
-    const currentIdx = Math.floor((phase / (2 * Math.PI)) * SEGMENTS);
-
-    // Ile segmentów = traceHours orbity
-    const traceCount = Math.min(
-      Math.ceil((traceSec / period) * SEGMENTS),
-      SEGMENTS,
-    );
-
-    // startIdx + traceCount ≤ 2*SEGMENTS zawsze (zdwojony bufor)
-    const startIdx = ((currentIdx - traceCount) % SEGMENTS + SEGMENTS) % SEGMENTS;
-    lineRef.current.geometry.setDrawRange(startIdx, traceCount);
+    for (let k = 0; k <= SEGS; k++) {
+      const t = timeSec - traceSec + (k / SEGS) * traceSec;
+      const pos = computeGPSPosition(eph, t, true, anim.showHarmonics);
+      posArr[k * 3]     = pos.x * SCENE_SCALE;
+      posArr[k * 3 + 1] = pos.z * SCENE_SCALE;
+      posArr[k * 3 + 2] = -pos.y * SCENE_SCALE;
+    }
+    lineObj.geometry.attributes.position.needsUpdate = true;
   });
 
-  return <primitive ref={lineRef} object={lineObject} />;
+  return <primitive object={lineObj} />;
 }

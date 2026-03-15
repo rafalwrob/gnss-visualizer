@@ -49,10 +49,10 @@ export function Visualizer() {
           <div className="text-[#6e7681] text-[9px] font-mono">3D Satellite Navigator · α</div>
         </div>
 
-        {/* ECI / ECEF — widoczny toggle w głównym UI */}
+        {/* ECI / ECEF + Ślad naziemny */}
         <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-2">
           <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-1.5 font-mono">Układ współrzędnych</div>
-          <div className="flex gap-1">
+          <div className="flex gap-1 mb-2">
             {(['ECI', 'ECEF'] as const).map(sys => {
               const active = sys === 'ECEF' ? useEcef : !useEcef;
               return (
@@ -70,11 +70,13 @@ export function Visualizer() {
               );
             })}
           </div>
-          <div className="text-[9px] text-[#484f58] mt-1.5 font-mono">
+          <div className="text-[9px] text-[#484f58] mb-2 font-mono">
             {useEcef
-              ? 'ECEF — Ziemia nieruchoma, satelity orbitują'
+              ? 'ECEF — ślad w ukł. stałym z Ziemią (roseta)'
               : 'ECI — inercjalny, czyste elipsy orbit'}
           </div>
+
+          <Toggle label="Ślad naziemny" value={showGroundTrack} onChange={setShowGroundTrack} />
         </div>
 
         <SystemPanel />
@@ -109,18 +111,9 @@ export function Visualizer() {
               value={showHarmonics}
               onChange={setShowHarmonics}
             />
-            <div className="text-[9px] text-[#484f58] -mt-1 pl-0">
+            <div className="text-[9px] text-[#484f58] -mt-1">
               Poprawki Crc, Crs, Cuc, Cus, Cic, Cis + dn, IDOT.
               Różnica ~5–200 m vs orbita Keplera.
-            </div>
-
-            <Toggle
-              label="Ślad naziemny (ground track)"
-              value={showGroundTrack}
-              onChange={setShowGroundTrack}
-            />
-            <div className="text-[9px] text-[#484f58] -mt-1">
-              Projekcja toru satelity na powierzchnię Ziemi.
             </div>
           </div>
         )}
