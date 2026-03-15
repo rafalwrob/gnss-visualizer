@@ -29,7 +29,7 @@ interface GpCache {
 }
 
 async function fetchFromNetwork(): Promise<GpRecord[]> {
-  const url = 'https://celestrak.org/gp.php?GROUP=gps-ops&FORMAT=json';
+  const url = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=json';
   const res = await fetch(url);
   if (!res.ok) throw new Error(`CelesTrak ${res.status}: ${res.statusText}`);
   return res.json();
