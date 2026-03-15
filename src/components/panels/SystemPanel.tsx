@@ -4,6 +4,7 @@ import { useUiStore } from '../../store/uiStore';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 import type { GnssSystem } from '../../types/satellite';
 import { fetchGpsConstellation, getCacheAge, clearGpsCache } from '../../services/api/celestrak';
+import { anim } from '../scene/animState';
 
 const SYSTEMS: GnssSystem[] = ['gps', 'galileo', 'glonass', 'beidou', 'qzss', 'navic'];
 
@@ -40,6 +41,7 @@ export function SystemPanel() {
     setFetchError('');
     fetchGpsConstellation()
       .then(sats => {
+        anim.realtimeOriginMs = Date.now();
         setSatellites(sats);
         setMode('constellation');
         setFetchState('ok');
@@ -66,6 +68,7 @@ export function SystemPanel() {
     setFetchState('loading');
     fetchGpsConstellation()
       .then(sats => {
+        anim.realtimeOriginMs = Date.now();
         setSatellites(sats);
         setFetchState('ok');
         setCacheAge(0);

@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 
 type Panel = 'steps' | 'freq' | 'pos' | 'alm' | 'iono' | 'satellites' | null;
+export type LeftTab = 'orbital' | 'satellites' | 'kepler' | 'settings';
 
 interface UiState {
   openPanel: Panel;
@@ -10,6 +11,7 @@ interface UiState {
   useEcef: boolean;
   showEciAxes: boolean;
   onlineMode: boolean;
+  activeTab: LeftTab;
 
   setOpenPanel: (p: Panel) => void;
   togglePanel: (p: Exclude<Panel, null>) => void;
@@ -19,6 +21,7 @@ interface UiState {
   setUseEcef: (v: boolean) => void;
   setShowEciAxes: (v: boolean) => void;
   setOnlineMode: (v: boolean) => void;
+  setActiveTab: (t: LeftTab) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -26,9 +29,10 @@ export const useUiStore = create<UiState>((set) => ({
   showGroundTrack: true,
   showHarmonics: true,
   showIonoLayer: false,
-  useEcef: false,  // ECI domyślnie — czyste elipsy orbit
+  useEcef: false,
   showEciAxes: false,
   onlineMode: false,
+  activeTab: 'orbital',
 
   setOpenPanel: (p) => set({ openPanel: p }),
   togglePanel: (p) => set(s => ({ openPanel: s.openPanel === p ? null : p })),
@@ -38,4 +42,5 @@ export const useUiStore = create<UiState>((set) => ({
   setUseEcef: (v) => set({ useEcef: v }),
   setShowEciAxes: (v) => set({ showEciAxes: v }),
   setOnlineMode: (v) => set({ onlineMode: v }),
+  setActiveTab: (t) => set({ activeTab: t }),
 }));

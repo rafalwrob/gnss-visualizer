@@ -15,30 +15,39 @@ import { OMEGA_E } from '../../constants/gnss';
 /** Synchronizuje mutable anim{} z Zustand stores oraz obsługuje pętlę animacji */
 function SceneController() {
   const { animating, animSpeed, timeHours, traceHours, setTimeHours } = useTimeStore();
-  const { showHarmonics, useEcef } = useUiStore();
+  const { showHarmonics, useEcef, onlineMode } = useUiStore();
 
   const frameCount = useRef(0);
 
-  // Synchronizacja stan Zustand → anim{}
+  // Synchronizacja Zustand → anim{}
   useEffect(() => { anim.animating = animating; }, [animating]);
   useEffect(() => { anim.animSpeed = animSpeed; }, [animSpeed]);
   useEffect(() => { anim.showHarmonics = showHarmonics; }, [showHarmonics]);
   useEffect(() => { anim.useEcef = useEcef; }, [useEcef]);
   useEffect(() => { anim.traceHours = traceHours; }, [traceHours]);
+  useEffect(() => { anim.realtimeClock = onlineMode; }, [onlineMode]);
 
-  // Suwak UI → anim.timeSec (tylko gdy NIE animujemy)
+  // Suwak UI → anim.timeSec (tylko gdy NIE animujemy i NIE realtime)
   useEffect(() => {
-    if (!animating) {
+    if (!animating && !onlineMode) {
       anim.timeSec = timeHours * 3600;
     }
-  }, [timeHours, animating]);
+  }, [timeHours, animating, onlineMode]);
 
-  // Główna pętla: 1.2h/s czasu symulacji przy speed=1 (jak stara wersja)
   useFrame((_, delta) => {
+    // Tryb czasu rzeczywistego: timeSec = sekundy od momentu załadowania danych
+    if (anim.realtimeClock) {
+      anim.timeSec = (Date.now() - anim.realtimeOriginMs) / 1000;
+      frameCount.current++;
+      if (frameCount.current % 16 === 0) {
+        setTimeHours(anim.timeSec / 3600);
+      }
+      return;
+    }
+
+    // Tryb symulacji: 1.2h/s przy speed=1
     if (!anim.animating) return;
     anim.timeSec = (anim.timeSec + delta * anim.animSpeed * 4320) % (48 * 3600);
-
-    // Aktualizuj Zustand (i suwak UI) co 16 klatek (~4 Hz przy 60fps)
     frameCount.current++;
     if (frameCount.current % 16 === 0) {
       setTimeHours(anim.timeSec / 3600);
@@ -64,7 +73,7 @@ function EarthAligned({ children }: { children: React.ReactNode }) {
 /** Zawartość sceny 3D */
 function SceneContent() {
   const { satellites, selectedIndex, mode, singleEph, selectSatellite } = useSatelliteStore();
-  const { showHarmonics, showGroundTrack, useEcef } = useUiStore();
+  const { showHarmonics, showGroundTrack, useEcef, setActiveTab } = useUiStore();
 
   const sats = mode === 'constellation' ? satellites : [];
 
@@ -95,7 +104,7 @@ function SceneContent() {
             eph={sat.eph}
             color={sat.color}
             selected={i === selectedIndex}
-            onClick={() => selectSatellite(i)}
+            onClick={() => { selectSatellite(i); setActiveTab('satellites'); }}
           />
         </group>
       ))}

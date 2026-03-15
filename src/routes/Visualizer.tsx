@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { GlobeScene } from '../components/scene/GlobeScene';
 import { TimeControl } from '../components/panels/TimeControl';
 import { SystemPanel } from '../components/panels/SystemPanel';
@@ -6,8 +5,7 @@ import { OrbitalElements } from '../components/panels/OrbitalElements';
 import { SatelliteList } from '../components/panels/SatelliteList';
 import { KeplerStepper } from '../components/education/KeplerStepper';
 import { useUiStore } from '../store/uiStore';
-
-type Tab = 'orbital' | 'satellites' | 'kepler' | 'settings';
+import type { LeftTab } from '../store/uiStore';
 
 function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
@@ -24,13 +22,13 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
 }
 
 export function Visualizer() {
-  const [activeTab, setActiveTab] = useState<Tab>('orbital');
   const {
     showHarmonics, useEcef, showGroundTrack,
     setShowHarmonics, setUseEcef, setShowGroundTrack,
+    activeTab, setActiveTab,
   } = useUiStore();
 
-  const tabs: { id: Tab; label: string }[] = [
+  const tabs: { id: LeftTab; label: string }[] = [
     { id: 'orbital',    label: 'Orbita' },
     { id: 'satellites', label: 'Satelity' },
     { id: 'kepler',     label: 'Kepler' },

@@ -10,4 +10,7 @@ export const anim = {
   animSpeed: 1,
   showHarmonics: true,
   useEcef: false,
+  /** Tryb czasu rzeczywistego — timeSec = (Date.now() - realtimeOriginMs) / 1000 */
+  realtimeClock: false,
+  realtimeOriginMs: 0,
 };
