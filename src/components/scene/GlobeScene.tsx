@@ -93,7 +93,13 @@ function SceneContent() {
           />
           {showGroundTrack && (
             <EarthAligned>
-              <GroundTrack eph={sat.eph} color={sat.color} harmonics={showHarmonics} />
+              <GroundTrack
+                eph={sat.eph}
+                color={sat.color}
+                harmonics={showHarmonics}
+                selected={i === selectedIndex}
+                dimmed={selectedIndex >= 0 && i !== selectedIndex}
+              />
             </EarthAligned>
           )}
           <SatelliteMarker

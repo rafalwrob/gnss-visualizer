@@ -11,13 +11,15 @@ interface GroundTrackProps {
   eph: KeplerianEphemeris;
   color: string;
   harmonics: boolean;
+  selected?: boolean;
+  dimmed?: boolean;
 }
 
 /**
  * Ślad naziemny — zawsze ECEF, punkty w lokalnej przestrzeni EarthAligned.
  * Imperatywna aktualizacja geometrii co 8 klatek — zero React re-renderów od czasu.
  */
-export function GroundTrack({ eph, color, harmonics }: GroundTrackProps) {
+export function GroundTrack({ eph, color, harmonics, selected = false, dimmed = false }: GroundTrackProps) {
   const frame = useRef(0);
 
   const posArr = useMemo(() => new Float32Array((SEGS + 1) * 3), []);
@@ -50,6 +52,10 @@ export function GroundTrack({ eph, color, harmonics }: GroundTrackProps) {
 
   // Aktualizacja co 8 klatek
   useFrame(() => {
+    const mat = lineObj.material as THREE.LineBasicMaterial;
+    const opacity = selected ? 0.9 : dimmed ? 0.15 : 0.55;
+    if (mat.opacity !== opacity) mat.opacity = opacity;
+
     frame.current++;
     if (frame.current % 8 !== 0) return;
 
