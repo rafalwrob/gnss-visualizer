@@ -54,8 +54,9 @@ function SceneContent() {
 
   return (
     <>
-      <ambientLight intensity={0.12} />
-      <directionalLight position={[5, 3, 5]} intensity={1.3} />
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[5, 3, 5]} intensity={1.2} />
+      <directionalLight position={[-3, -2, -3]} intensity={0.15} />
 
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
 

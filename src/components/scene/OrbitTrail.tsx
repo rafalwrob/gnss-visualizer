@@ -50,7 +50,7 @@ export function OrbitTrail({ eph, color, harmonics }: OrbitTrailProps) {
   }, [eph, harmonics]); // ← brak tSec!
 
   const material = useMemo(
-    () => new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.45 }),
+    () => new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.8, linewidth: 2 }),
     [color],
   );
 
