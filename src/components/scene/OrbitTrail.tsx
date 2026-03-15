@@ -1,7 +1,7 @@
 import { useRef, useMemo, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { computeGPSPosition, orbitalPeriod } from '../../services/orbital/keplerMath';
+import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import type { KeplerianEphemeris } from '../../types/ephemeris';
 import { SCENE_SCALE } from './Earth';
 import { anim } from './animState';
@@ -17,11 +17,14 @@ interface OrbitTrailProps {
 
 /**
  * Ślad orbity — zero subskrypcji Zustand, zero React re-renderów od czasu.
- * ECI: statyczna pełna elipsa obliczona raz (z useMemo).
- * ECEF: imperatywna aktualizacja geometrii w useFrame co 8 klatek.
+ * Zawsze dynamiczny: pokazuje ostatnie traceHours wstecz od bieżącej pozycji.
+ * ECI: łuk na elipsie orbitalnej (koniec łuku = aktualna pozycja → ruch widoczny).
+ * ECEF: roseta śladów naziemnych.
+ * Aktualizacja geometrii co 8 klatek (~7.5 Hz przy 60fps).
  */
 export function OrbitTrail({ eph, color, harmonics }: OrbitTrailProps) {
-  const frame = useRef(0);
+  // start=7 → pierwsza klatka useFrame od razu wykonuje aktualizację (8%8=0)
+  const frame = useRef(7);
 
   // Wstępnie alokowany bufor pozycji — nigdy nie tworzony od nowa
   const posArr = useMemo(() => new Float32Array((SEGS + 1) * 3), []);
@@ -42,12 +45,15 @@ export function OrbitTrail({ eph, color, harmonics }: OrbitTrailProps) {
     };
   }, [lineObj]);
 
-  // ECI: policz pełną elipsę raz gdy zmienia się efemerida lub harmoniki
+  // Wstępne wypełnienie przy zmianie efemerydy — widoczne przed pierwszą klatką
   useMemo(() => {
-    const period = orbitalPeriod(eph.a);
+    const traceSec = anim.traceHours * 3600;
+    const t0 = anim.realtimeClock
+      ? (Date.now() - anim.realtimeOriginMs) / 1000
+      : anim.timeSec;
     for (let k = 0; k <= SEGS; k++) {
-      const t = (k / SEGS) * period;
-      const pos = computeGPSPosition(eph, t, false, harmonics);
+      const t = t0 - traceSec + (k / SEGS) * traceSec;
+      const pos = computeGPSPosition(eph, t, anim.useEcef, harmonics);
       posArr[k * 3]     = pos.x * SCENE_SCALE;
       posArr[k * 3 + 1] = pos.z * SCENE_SCALE;
       posArr[k * 3 + 2] = -pos.y * SCENE_SCALE;
@@ -55,19 +61,22 @@ export function OrbitTrail({ eph, color, harmonics }: OrbitTrailProps) {
     if (lineObj.geometry.attributes.position) {
       lineObj.geometry.attributes.position.needsUpdate = true;
     }
-  }, [eph, harmonics]); // celowo pomijamy posArr/lineObj (stable refs)
+  }, [eph, harmonics]); // celowo pomijamy stable refs
 
-  // ECEF: aktualizacja co 8 klatek (~7.5 Hz przy 60fps)
+  // Aktualizacja co 8 klatek — ECI i ECEF obsługiwane jednakowo
   useFrame(() => {
-    if (!anim.useEcef) return;
     frame.current++;
     if (frame.current % 8 !== 0) return;
 
-    const timeSec = anim.timeSec;
+    // W trybie live czytamy czas bezpośrednio z Date.now() — niezależnie od SceneController
+    const timeSec = anim.realtimeClock
+      ? (Date.now() - anim.realtimeOriginMs) / 1000
+      : anim.timeSec;
     const traceSec = anim.traceHours * 3600;
+
     for (let k = 0; k <= SEGS; k++) {
       const t = timeSec - traceSec + (k / SEGS) * traceSec;
-      const pos = computeGPSPosition(eph, t, true, anim.showHarmonics);
+      const pos = computeGPSPosition(eph, t, anim.useEcef, anim.showHarmonics);
       posArr[k * 3]     = pos.x * SCENE_SCALE;
       posArr[k * 3 + 1] = pos.z * SCENE_SCALE;
       posArr[k * 3 + 2] = -pos.y * SCENE_SCALE;

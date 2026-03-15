@@ -5,7 +5,7 @@
  */
 export const anim = {
   timeSec: 0,
-  traceHours: 12,
+  traceHours: 2,
   animating: false,
   animSpeed: 1,
   showHarmonics: true,

@@ -14,7 +14,7 @@ interface TimeState {
 
 export const useTimeStore = create<TimeState>((set) => ({
   timeHours: 0,
-  traceHours: 12,
+  traceHours: 2,
   animating: false,
   animSpeed: 1.0,
 

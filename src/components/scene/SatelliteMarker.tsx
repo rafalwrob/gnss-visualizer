@@ -21,7 +21,11 @@ export function SatelliteMarker({ eph, color, selected = false, onClick }: Satel
 
   /** Per-frame: bezpośrednia mutacja mesh.position — zero React re-renderów */
   useFrame(() => {
-    const pos = computeGPSPosition(eph, anim.timeSec, anim.useEcef, anim.showHarmonics);
+    // W trybie live czytamy czas bezpośrednio z Date.now() — gwarantuje świeżą pozycję
+    const timeSec = anim.realtimeClock
+      ? (Date.now() - anim.realtimeOriginMs) / 1000
+      : anim.timeSec;
+    const pos = computeGPSPosition(eph, timeSec, anim.useEcef, anim.showHarmonics);
     const x = pos.x * SCENE_SCALE;
     const y = pos.z * SCENE_SCALE;
     const z = -pos.y * SCENE_SCALE;

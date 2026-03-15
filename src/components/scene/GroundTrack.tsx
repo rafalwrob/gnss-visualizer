@@ -53,7 +53,10 @@ export function GroundTrack({ eph, color, harmonics }: GroundTrackProps) {
     frame.current++;
     if (frame.current % 8 !== 0) return;
 
-    const timeSec = anim.timeSec;
+    // W trybie live czytamy czas bezpośrednio z Date.now()
+    const timeSec = anim.realtimeClock
+      ? (Date.now() - anim.realtimeOriginMs) / 1000
+      : anim.timeSec;
     const traceSec = anim.traceHours * 3600;
     for (let k = 0; k <= SEGS; k++) {
       const t = timeSec - traceSec + (k / SEGS) * traceSec;
