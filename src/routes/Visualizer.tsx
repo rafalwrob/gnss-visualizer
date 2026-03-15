@@ -132,10 +132,9 @@ export function Visualizer() {
         <div className="absolute bottom-2 right-2 text-[9px] text-[#21262d] font-mono pointer-events-none select-none">
           GNSS Visualizer α · Faza 1
         </div>
+        {/* Prawy panel — szczegóły satelity (overlay nad sceną) */}
+        <SatelliteDetailPanel />
       </div>
-
-      {/* Prawy panel — szczegóły satelity */}
-      <SatelliteDetailPanel />
     </div>
   );
 }

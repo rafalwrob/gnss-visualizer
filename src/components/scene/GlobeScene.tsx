@@ -15,7 +15,7 @@ import { OMEGA_E } from '../../constants/gnss';
 /** Synchronizuje mutable anim{} z Zustand stores oraz obsługuje pętlę animacji */
 function SceneController() {
   const { animating, animSpeed, timeHours, traceHours, setTimeHours } = useTimeStore();
-  const { showHarmonics, useEcef, onlineMode } = useUiStore();
+  const { showHarmonics, useEcef } = useUiStore();
 
   const frameCount = useRef(0);
 
@@ -25,27 +25,15 @@ function SceneController() {
   useEffect(() => { anim.showHarmonics = showHarmonics; }, [showHarmonics]);
   useEffect(() => { anim.useEcef = useEcef; }, [useEcef]);
   useEffect(() => { anim.traceHours = traceHours; }, [traceHours]);
-  // realtimeClock NIE jest tutaj syncowany — ustawia go SystemPanel dopiero po udanym fetchu
 
-  // Suwak UI → anim.timeSec (tylko gdy NIE animujemy i NIE realtime)
+  // Suwak UI → anim.timeSec (tylko gdy NIE animujemy)
   useEffect(() => {
-    if (!animating && !onlineMode) {
+    if (!animating) {
       anim.timeSec = timeHours * 3600;
     }
-  }, [timeHours, animating, onlineMode]);
+  }, [timeHours, animating]);
 
   useFrame((_, delta) => {
-    // Tryb czasu rzeczywistego: timeSec = sekundy od momentu załadowania danych
-    if (anim.realtimeClock) {
-      anim.timeSec = (Date.now() - anim.realtimeOriginMs) / 1000;
-      frameCount.current++;
-      if (frameCount.current % 16 === 0) {
-        setTimeHours(anim.timeSec / 3600);
-      }
-      return;
-    }
-
-    // Tryb symulacji: 1.2h/s przy speed=1
     if (!anim.animating) return;
     anim.timeSec = (anim.timeSec + delta * anim.animSpeed * 4320) % (48 * 3600);
     frameCount.current++;

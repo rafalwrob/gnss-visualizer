@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useSatelliteStore } from '../../store/satelliteStore';
 import { useUiStore } from '../../store/uiStore';
+import { useTimeStore } from '../../store/timeStore';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 import type { GnssSystem } from '../../types/satellite';
 import { fetchGpsConstellation, getCacheAge, clearGpsCache } from '../../services/api/celestrak';
-import { anim } from '../scene/animState';
 
 const SYSTEMS: GnssSystem[] = ['gps', 'galileo', 'glonass', 'beidou', 'qzss', 'navic'];
 
@@ -30,6 +30,7 @@ function formatAge(ms: number): string {
 export function SystemPanel() {
   const { mode, activeSystem, setMode, setActiveSystem, loadExample, setSatellites } = useSatelliteStore();
   const { onlineMode, setOnlineMode } = useUiStore();
+  const { setAnimating, setTimeHours } = useTimeStore();
   const [fetchState, setFetchState] = useState<FetchState>('idle');
   const [fetchError, setFetchError] = useState('');
   const [cacheAge, setCacheAge] = useState<number | null>(null);
@@ -41,11 +42,11 @@ export function SystemPanel() {
     setFetchError('');
     fetchGpsConstellation()
       .then(sats => {
-        // Ustaw origin PRZED włączeniem realtimeClock — unikamy timeSec=1.7B
-        anim.realtimeOriginMs = Date.now();
-        anim.realtimeClock = true;
         setSatellites(sats);
         setMode('constellation');
+        // Zacznij od t=0 (M0 = aktualna pozycja) i uruchom animację
+        setTimeHours(0);
+        setAnimating(true);
         setFetchState('ok');
         setCacheAge(getCacheAge());
       })
@@ -58,11 +59,10 @@ export function SystemPanel() {
   function handleOnlineToggle() {
     if (onlineMode) {
       setOnlineMode(false);
-      anim.realtimeClock = false;  // wyłącz realtime clock
+      setAnimating(false);
       setFetchState('idle');
     } else {
       setOnlineMode(true);
-      // realtimeClock włączy się dopiero po fetch (w .then) — bezpieczna kolejność
     }
   }
 
@@ -71,9 +71,9 @@ export function SystemPanel() {
     setFetchState('loading');
     fetchGpsConstellation()
       .then(sats => {
-        anim.realtimeOriginMs = Date.now();
-        anim.realtimeClock = true;
         setSatellites(sats);
+        setTimeHours(0);
+        setAnimating(true);
         setFetchState('ok');
         setCacheAge(0);
       })
