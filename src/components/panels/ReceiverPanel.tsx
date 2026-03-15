@@ -25,18 +25,27 @@ function systemColor(system: GnssSystem): string {
   return GNSS_SYSTEMS[system]?.color ?? '#8b949e';
 }
 
-const statusColors: Record<string, string> = {
+const STATUS_COLORS: Record<string, string> = {
   disconnected: '#6e7681',
   connecting: '#f7c948',
   connected: '#3fb950',
   error: '#da3633',
 };
-const statusLabels: Record<string, string> = {
+const STATUS_LABELS: Record<string, string> = {
   disconnected: 'Brak połączenia',
   connecting: 'Łączenie...',
   connected: 'Połączono',
   error: 'Błąd',
 };
+
+function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-[#0d1117] border border-[#30363d] rounded-xl p-4">
+      <div className="text-[#8b949e] text-xs uppercase tracking-widest mb-3 font-mono">{title}</div>
+      {children}
+    </div>
+  );
+}
 
 const serialConn = new SerialConnection();
 let activeAdapter: ProtocolAdapter = new UbxAdapter();
@@ -52,17 +61,12 @@ export function ReceiverPanel() {
   function getAdapter(): ProtocolAdapter {
     if (store.activeProtocol === 'ubx') return new UbxAdapter();
     if (store.activeProtocol === 'nmea') return new NmeaAdapter();
-    const plugin = loadedPlugins.find(p => p.name === store.activeProtocol);
-    return plugin ?? new UbxAdapter();
+    return loadedPlugins.find(p => p.name === store.activeProtocol) ?? new UbxAdapter();
   }
 
   function handleData(data: ParsedData) {
-    if (data.measurements?.length) {
-      store.addMeasurements(data.measurements);
-    }
-    if (data.observations?.length) {
-      store.setObservations(data.observations);
-    }
+    if (data.measurements?.length) store.addMeasurements(data.measurements);
+    if (data.observations?.length) store.setObservations(data.observations);
     if (data.ephemerides?.length) {
       store.incrementEphemeris(data.ephemerides.length);
       const sats = [...useSatelliteStore.getState().satellites];
@@ -70,8 +74,7 @@ export function ReceiverPanel() {
         const prnStr = formatPrn(system, prn);
         const idx = sats.findIndex(s => s.prn === prnStr);
         const record = { prn: prnStr, system, plane: 0, color: systemColor(system), eph };
-        if (idx >= 0) sats[idx] = record;
-        else sats.push(record);
+        if (idx >= 0) sats[idx] = record; else sats.push(record);
       }
       useSatelliteStore.getState().setSatellites(sats);
     }
@@ -101,13 +104,10 @@ export function ReceiverPanel() {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    const adapter = getAdapter();
     setFileReading(true);
     store.setFileProgress(0);
     try {
-      await readFileWithAdapter(file, adapter, handleData, (pct) => {
-        store.setFileProgress(pct);
-      });
+      await readFileWithAdapter(file, getAdapter(), handleData, pct => store.setFileProgress(pct));
     } finally {
       setFileReading(false);
       store.setFileProgress(100);
@@ -129,167 +129,136 @@ export function ReceiverPanel() {
 
   const status = store.status;
   const protocols = [
-    { id: 'ubx', label: 'UBX' },
-    { id: 'nmea', label: 'NMEA' },
+    { id: 'ubx', label: 'u-blox UBX' },
+    { id: 'nmea', label: 'NMEA 0183' },
     ...loadedPlugins.map(p => ({ id: p.name, label: p.name })),
   ];
 
-  const serialSupported = SerialConnection.isSupported();
-
   return (
-    <div className="space-y-2 font-mono">
+    <div className="space-y-4 font-mono">
       {showBuilder && <ProtocolBuilder onClose={() => setShowBuilder(false)} />}
 
-      {/* Wybór protokołu */}
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
-        <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-2">Protokół</div>
-        <div className="flex flex-wrap gap-1">
+      {/* Protokół */}
+      <SectionCard title="Protokół">
+        <div className="flex flex-wrap gap-2">
           {protocols.map(p => (
             <button
               key={p.id}
               onClick={() => store.setActiveProtocol(p.id)}
-              className={`px-2 py-1 rounded text-[10px] border transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs border transition-all ${
                 store.activeProtocol === p.id
-                  ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
-                  : 'bg-transparent border-[#30363d] text-[#6e7681] hover:border-[#58a6ff] hover:text-[#58a6ff]'
+                  ? 'bg-[#1f6feb] border-[#1f6feb] text-white font-medium'
+                  : 'border-[#30363d] text-[#8b949e] hover:border-[#58a6ff] hover:text-[#58a6ff]'
               }`}
             >
               {p.label}
             </button>
           ))}
         </div>
-      </div>
+      </SectionCard>
 
-      {/* Serial */}
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
-        <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-2">Serial (WebSerial)</div>
-        {serialSupported ? (
+      {/* Połączenie */}
+      <SectionCard title="Połączenie">
+        <div className="space-y-2">
+          {/* Serial */}
+          {SerialConnection.isSupported() ? (
+            <button
+              onClick={handleSerial}
+              className={`w-full py-2.5 rounded-lg text-sm border transition-all font-medium ${
+                status === 'connected'
+                  ? 'bg-[#da3633]/20 border-[#da3633] text-[#da3633] hover:bg-[#da3633]/30'
+                  : 'bg-[#21262d] border-[#30363d] text-[#e6edf3] hover:border-[#58a6ff]'
+              }`}
+            >
+              {status === 'connected' ? 'Rozłącz serial' : 'Połącz przez serial (USB)'}
+            </button>
+          ) : (
+            <div className="text-[#6e7681] text-xs py-1">
+              WebSerial: wymagany Chrome lub Edge (Firefox nie obsługuje)
+            </div>
+          )}
+
+          {/* Plik */}
           <button
-            onClick={handleSerial}
-            className={`w-full py-1.5 rounded text-[10px] border transition-all ${
-              status === 'connected'
-                ? 'bg-[#da3633]/20 border-[#da3633] text-[#da3633] hover:bg-[#da3633]/30'
-                : 'bg-[#21262d] border-[#30363d] text-[#e6edf3] hover:border-[#58a6ff]'
-            }`}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={fileReading}
+            className="w-full py-2.5 rounded-lg text-sm border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:border-[#58a6ff] transition-all disabled:opacity-50"
           >
-            {status === 'connected' ? '⏹ Rozłącz serial' : '🔌 Połącz serial'}
+            {fileReading ? `Wczytywanie… ${store.fileProgress}%` : 'Otwórz plik (.ubx  .nmea  .bin)'}
           </button>
-        ) : (
-          <div className="text-[#6e7681] text-[9px]">
-            WebSerial wymaga Chrome lub Edge. Firefox nie obsługuje.
-          </div>
-        )}
-      </div>
+          <input ref={fileInputRef} type="file" accept=".ubx,.nmea,.bin,.txt" className="hidden" onChange={handleFile} />
+          {fileReading && (
+            <div className="h-1.5 bg-[#21262d] rounded overflow-hidden">
+              <div className="h-full bg-[#1f6feb] transition-all" style={{ width: `${store.fileProgress}%` }} />
+            </div>
+          )}
+        </div>
+      </SectionCard>
 
-      {/* Plik */}
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
-        <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-2">Plik binarny / NMEA</div>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          disabled={fileReading}
-          className="w-full py-1.5 rounded text-[10px] border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:border-[#58a6ff] disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {fileReading ? `Wczytywanie... ${store.fileProgress}%` : '📂 Otwórz plik (.ubx .nmea .bin .txt)'}
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".ubx,.nmea,.bin,.txt"
-          className="hidden"
-          onChange={handleFile}
-        />
-        {fileReading && (
-          <div className="mt-2 h-1.5 bg-[#21262d] rounded overflow-hidden">
-            <div
-              className="h-full bg-[#1f6feb] transition-all"
-              style={{ width: `${store.fileProgress}%` }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Plugin */}
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
-        <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-2">Plugin protokołu (.js)</div>
-        <div className="flex gap-1 mb-2">
+      {/* Plugin protokołu */}
+      <SectionCard title="Plugin protokołu (.js)">
+        <div className="flex gap-2 mb-3">
           <button
             onClick={() => pluginInputRef.current?.click()}
-            className="flex-1 py-1.5 rounded text-[10px] border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:border-[#58a6ff]"
+            className="flex-1 py-2 rounded-lg text-xs border border-[#30363d] bg-[#21262d] text-[#e6edf3] hover:border-[#58a6ff] transition-all"
           >
-            📦 Załaduj .js
+            Załaduj plik .js
           </button>
           <button
             onClick={() => setShowBuilder(true)}
-            className="flex-1 py-1.5 rounded text-[10px] border border-[#1f6feb]/60 bg-[#1f6feb]/10 text-[#58a6ff] hover:bg-[#1f6feb]/20"
+            className="flex-1 py-2 rounded-lg text-xs border border-[#1f6feb]/60 bg-[#1f6feb]/10 text-[#58a6ff] hover:bg-[#1f6feb]/20 transition-all"
           >
-            🔧 Kreator
+            Kreator protokołu
           </button>
         </div>
-        <input
-          ref={pluginInputRef}
-          type="file"
-          accept=".js"
-          className="hidden"
-          onChange={handlePluginFile}
-        />
+        <input ref={pluginInputRef} type="file" accept=".js" className="hidden" onChange={handlePluginFile} />
         {loadedPlugins.length > 0 && (
-          <div className="mt-2 space-y-1">
+          <div className="space-y-1.5">
             {loadedPlugins.map(p => (
-              <div key={p.name} className="flex items-center justify-between text-[9px]">
-                <span className="text-[#3fb950]">✓ {p.name}</span>
-                <button
-                  onClick={() => store.removePlugin(p.name)}
-                  className="text-[#da3633] hover:text-red-400"
-                >
-                  ✕
-                </button>
+              <div key={p.name} className="flex items-center justify-between bg-[#161b22] rounded-lg px-3 py-2">
+                <span className="text-xs text-[#3fb950]">✓ {p.name}</span>
+                <button onClick={() => store.removePlugin(p.name)} className="text-[#da3633] hover:text-red-400 text-sm">✕</button>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </SectionCard>
 
-      {/* Status */}
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
-        <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-2">Status</div>
-        <div className="flex items-center gap-2 mb-2">
+      {/* Status i liczniki */}
+      <SectionCard title="Status">
+        <div className="flex items-center gap-2.5 mb-3">
           <span
-            className={`w-2 h-2 rounded-full ${status === 'connected' || status === 'connecting' ? 'animate-pulse' : ''}`}
-            style={{ backgroundColor: statusColors[status] }}
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${status === 'connected' || status === 'connecting' ? 'animate-pulse' : ''}`}
+            style={{ backgroundColor: STATUS_COLORS[status] }}
           />
-          <span className="text-[10px]" style={{ color: statusColors[status] }}>
-            {statusLabels[status]}
+          <span className="text-sm font-medium" style={{ color: STATUS_COLORS[status] }}>
+            {STATUS_LABELS[status]}
           </span>
         </div>
         {store.errorMessage && (
-          <div className="text-[#da3633] text-[9px] mb-2">{store.errorMessage}</div>
+          <div className="text-xs text-[#da3633] mb-3 bg-[#da3633]/10 rounded-lg px-3 py-2">{store.errorMessage}</div>
         )}
-
-        {/* Liczniki */}
-        <div className="grid grid-cols-3 gap-1 text-center">
+        <div className="grid grid-cols-3 gap-2 mb-3">
           {[
-            { label: 'Bajty', value: store.bytesReceived > 1024
-                ? `${(store.bytesReceived / 1024).toFixed(1)}k`
-                : String(store.bytesReceived) },
-            { label: 'Wiad.', value: String(store.messagesDecoded) },
-            { label: 'Efem.', value: String(store.ephemerisCount) },
+            { label: 'Bajty', value: store.bytesReceived > 1024 ? `${(store.bytesReceived / 1024).toFixed(1)} kB` : `${store.bytesReceived} B` },
+            { label: 'Wiadomości', value: String(store.messagesDecoded) },
+            { label: 'Efemerydy', value: String(store.ephemerisCount) },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-[#161b22] rounded p-1">
-              <div className="text-[#6e7681] text-[8px]">{label}</div>
-              <div className="text-[#e6edf3] text-[10px] font-bold">{value}</div>
+            <div key={label} className="bg-[#161b22] rounded-lg p-2.5 text-center">
+              <div className="text-[#6e7681] text-[10px] mb-1">{label}</div>
+              <div className="text-[#e6edf3] text-sm font-bold tabular-nums">{value}</div>
             </div>
           ))}
         </div>
-
-        {/* Pozycja */}
         {store.positionFix && store.positionFix.fixType !== 'none' && (
-          <div className="mt-2 text-[9px] text-[#3fb950]">
-            <div>Lat: {store.positionFix.lat.toFixed(6)}°</div>
-            <div>Lon: {store.positionFix.lon.toFixed(6)}°</div>
-            <div>Alt: {store.positionFix.alt.toFixed(1)} m ({store.positionFix.fixType})</div>
+          <div className="bg-[#0d2a1a] border border-[#238636] rounded-lg px-3 py-2.5 text-xs text-[#3fb950] space-y-1">
+            <div className="font-medium mb-1">Pozycja ({store.positionFix.fixType.toUpperCase()})</div>
+            <div className="tabular-nums">Lat: {store.positionFix.lat.toFixed(6)}°</div>
+            <div className="tabular-nums">Lon: {store.positionFix.lon.toFixed(6)}°</div>
+            <div className="tabular-nums">Alt: {store.positionFix.alt.toFixed(1)} m</div>
           </div>
         )}
-      </div>
+      </SectionCard>
 
       <SkyPlot />
       <RawDataPanel />

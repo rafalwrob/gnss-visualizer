@@ -1,60 +1,51 @@
 import { useReceiverStore } from '../../store/receiverStore';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 
-const SIZE = 240;
+const SIZE = 320;
 const CX = SIZE / 2;
 const CY = SIZE / 2;
-const R = 110;
+const R = 148;
 
 export function SkyPlot() {
   const observations = useReceiverStore(s => s.recentObservations);
 
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3">
-      <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-2 font-mono">Sky Plot</div>
+    <div className="bg-[#0d1117] border border-[#30363d] rounded-xl p-4">
+      <div className="text-[#8b949e] text-xs uppercase tracking-widest mb-3 font-mono">Sky Plot</div>
       <svg width={SIZE} height={SIZE} className="block mx-auto">
-        {/* Siatka */}
-        {[0, 30, 60].map(el => {
+        {/* Okręgi elewacji 0°/30°/60° */}
+        {([0, 30, 60] as const).map(el => {
           const r = R * (1 - el / 90);
           return (
-            <circle
-              key={el}
-              cx={CX} cy={CY} r={r}
-              fill="none"
-              stroke="#21262d"
-              strokeWidth={el === 0 ? 1.5 : 1}
-            />
+            <g key={el}>
+              <circle cx={CX} cy={CY} r={r} fill="none" stroke="#21262d" strokeWidth={el === 0 ? 1.5 : 1} />
+              <text x={CX + 3} y={CY - r + 12} fill="#484f58" fontSize={10} fontFamily="monospace">{el}°</text>
+            </g>
           );
         })}
-        {/* Linie N/E/S/W */}
-        {[0, 90, 180, 270].map(az => {
+        {/* Linie kierunków */}
+        {[0, 45, 90, 135, 180, 225, 270, 315].map(az => {
           const rad = (az - 90) * Math.PI / 180;
+          const isMajor = az % 90 === 0;
           return (
             <line
               key={az}
               x1={CX} y1={CY}
               x2={CX + R * Math.cos(rad)}
               y2={CY + R * Math.sin(rad)}
-              stroke="#21262d"
-              strokeWidth={1}
+              stroke={isMajor ? '#2d333b' : '#1a2030'}
+              strokeWidth={isMajor ? 1 : 0.5}
             />
           );
         })}
-        {/* Etykiety stron świata */}
+        {/* Etykiety N/E/S/W */}
         {[
-          { az: 0, label: 'N', dx: -4, dy: -R - 6 },
-          { az: 90, label: 'E', dx: R + 4, dy: 4 },
-          { az: 180, label: 'S', dx: -4, dy: R + 12 },
-          { az: 270, label: 'W', dx: -R - 14, dy: 4 },
-        ].map(({ label, dx, dy }) => (
-          <text
-            key={label}
-            x={CX + dx}
-            y={CY + dy}
-            fill="#6e7681"
-            fontSize={9}
-            fontFamily="monospace"
-          >
+          { label: 'N', x: CX - 5,    y: CY - R - 8 },
+          { label: 'E', x: CX + R + 6, y: CY + 4 },
+          { label: 'S', x: CX - 5,    y: CY + R + 16 },
+          { label: 'W', x: CX - R - 16, y: CY + 4 },
+        ].map(({ label, x, y }) => (
+          <text key={label} x={x} y={y} fill="#6e7681" fontSize={12} fontFamily="monospace" fontWeight="bold">
             {label}
           </text>
         ))}
@@ -65,31 +56,21 @@ export function SkyPlot() {
           const x = CX + r * Math.cos(rad);
           const y = CY + r * Math.sin(rad);
           const color = GNSS_SYSTEMS[obs.system]?.color ?? '#8b949e';
-          const opacity = 0.4 + 0.6 * Math.min(1, obs.snr / 50);
+          const opacity = 0.45 + 0.55 * Math.min(1, obs.snr / 50);
           return (
             <g key={obs.prn}>
-              <circle
-                cx={x} cy={y} r={5}
-                fill={color}
-                opacity={opacity}
-              />
-              <text
-                x={x + 7} y={y + 4}
-                fill={color}
-                fontSize={6}
-                fontFamily="monospace"
-                opacity={opacity}
-              >
+              <circle cx={x} cy={y} r={6} fill={color} opacity={opacity} />
+              <text x={x + 9} y={y + 4} fill={color} fontSize={9} fontFamily="monospace" opacity={opacity}>
                 {obs.prn}
               </text>
             </g>
           );
         })}
       </svg>
-      <div className="text-[#484f58] text-[9px] font-mono text-center mt-1">
+      <div className="text-[#484f58] text-xs font-mono text-center mt-2">
         {observations.length === 0
-          ? 'Brak obserwacji — wczytaj dane NMEA'
-          : `${observations.length} sat.`}
+          ? 'Brak obserwacji — wczytaj plik NMEA lub podłącz odbiornik'
+          : `${observations.length} satelitów widocznych`}
       </div>
     </div>
   );

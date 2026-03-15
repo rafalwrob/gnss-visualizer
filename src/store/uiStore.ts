@@ -11,7 +11,7 @@ interface UiState {
   useEcef: boolean;
   showEciAxes: boolean;
   onlineMode: boolean;
-  activeTab: LeftTab;
+  activeTab: LeftTab | null;
 
   setOpenPanel: (p: Panel) => void;
   togglePanel: (p: Exclude<Panel, null>) => void;
@@ -21,7 +21,7 @@ interface UiState {
   setUseEcef: (v: boolean) => void;
   setShowEciAxes: (v: boolean) => void;
   setOnlineMode: (v: boolean) => void;
-  setActiveTab: (t: LeftTab) => void;
+  setActiveTab: (t: LeftTab | null) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
