@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useTimeStore } from '../../store/timeStore';
 import { useUiStore } from '../../store/uiStore';
+import { useSatelliteStore } from '../../store/satelliteStore';
+import { GNSS_SYSTEMS } from '../../constants/gnss';
 import { anim } from '../scene/animState';
 
 function UtcClock() {
@@ -29,6 +31,8 @@ function ElapsedTime() {
 export function TimeControl() {
   const { timeHours, traceHours, animating, animSpeed, setTimeHours, setTraceHours, setAnimating, setAnimSpeed } = useTimeStore();
   const { onlineMode } = useUiStore();
+  const { activeSystem } = useSatelliteStore();
+  const sysName = GNSS_SYSTEMS[activeSystem]?.name ?? activeSystem.toUpperCase();
 
   return (
     <div className={`bg-[#0d1117] border rounded-lg p-3 text-xs font-mono transition-all ${
@@ -41,7 +45,7 @@ export function TimeControl() {
           <div className="flex items-center justify-between mb-1">
             <span className="flex items-center gap-1.5 text-[#3fb950] font-bold text-[10px]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse inline-block" />
-              LIVE · GPS
+              LIVE · {sysName}
             </span>
             <UtcClock />
           </div>

@@ -4,7 +4,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useTimeStore } from '../../store/timeStore';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 import type { GnssSystem } from '../../types/satellite';
-import { fetchGpsConstellation, getCacheAge, clearGpsCache } from '../../services/api/celestrak';
+import { fetchConstellation, getCacheAge, clearCache, isOnlineSupported } from '../../services/api/celestrak';
 import { anim } from '../scene/animState';
 
 const SYSTEMS: GnssSystem[] = ['gps', 'galileo', 'glonass', 'beidou', 'qzss', 'navic'];
@@ -36,25 +36,28 @@ export function SystemPanel() {
   const [fetchError, setFetchError] = useState('');
   const [cacheAge, setCacheAge] = useState<number | null>(null);
 
-  // Gdy tryb online + GPS — pobierz dane
-  useEffect(() => {
-    if (!onlineMode || activeSystem !== 'gps') return;
+  function doFetch(system: GnssSystem) {
     setFetchState('loading');
     setFetchError('');
-    fetchGpsConstellation()
+    fetchConstellation(system)
       .then(sats => {
-        // Origin PRZED realtimeClock — eliminuje race condition
         anim.realtimeOriginMs = Date.now();
         anim.realtimeClock = true;
         setSatellites(sats);
         setMode('constellation');
         setFetchState('ok');
-        setCacheAge(getCacheAge());
+        setCacheAge(getCacheAge(system));
       })
       .catch(e => {
         setFetchState('error');
         setFetchError(e.message ?? 'Błąd połączenia');
       });
+  }
+
+  // Gdy tryb online — pobierz dane dla aktywnego systemu
+  useEffect(() => {
+    if (!onlineMode) return;
+    doFetch(activeSystem);
   }, [onlineMode, activeSystem]);
 
   function handleOnlineToggle() {
@@ -69,21 +72,8 @@ export function SystemPanel() {
   }
 
   function handleRefresh() {
-    clearGpsCache();
-    setFetchState('loading');
-    fetchGpsConstellation()
-      .then(sats => {
-        anim.realtimeOriginMs = Date.now();
-        anim.realtimeClock = true;
-        setSatellites(sats);
-        setMode('constellation');
-        setFetchState('ok');
-        setCacheAge(0);
-      })
-      .catch(e => {
-        setFetchState('error');
-        setFetchError(e.message ?? 'Błąd połączenia');
-      });
+    clearCache(activeSystem);
+    doFetch(activeSystem);
   }
 
   return (
@@ -153,19 +143,19 @@ export function SystemPanel() {
           </button>
         </div>
 
-        {onlineMode && activeSystem !== 'gps' && (
+        {onlineMode && !isOnlineSupported(activeSystem) && (
           <div className="text-[#8b949e] text-[9px]">
-            Dane online dostępne tylko dla GPS
+            System {GNSS_SYSTEMS[activeSystem].name} niedostępny online
           </div>
         )}
 
-        {onlineMode && activeSystem === 'gps' && fetchState === 'loading' && (
+        {onlineMode && isOnlineSupported(activeSystem) && fetchState === 'loading' && (
           <div className="text-[#58a6ff] text-[9px] animate-pulse">
-            Pobieranie z CelesTrak…
+            Pobieranie {GNSS_SYSTEMS[activeSystem].name} z CelesTrak…
           </div>
         )}
 
-        {onlineMode && activeSystem === 'gps' && fetchState === 'ok' && (
+        {onlineMode && isOnlineSupported(activeSystem) && fetchState === 'ok' && (
           <div className="flex items-center justify-between">
             <span className="text-[#3fb950] text-[9px]">
               ✓ {cacheAge !== null ? formatAge(cacheAge) : 'załadowano'}
