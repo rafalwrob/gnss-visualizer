@@ -9,6 +9,7 @@ interface UiState {
   showIonoLayer: boolean;
   useEcef: boolean;
   showEciAxes: boolean;
+  onlineMode: boolean;
 
   setOpenPanel: (p: Panel) => void;
   togglePanel: (p: Exclude<Panel, null>) => void;
@@ -17,6 +18,7 @@ interface UiState {
   setShowIonoLayer: (v: boolean) => void;
   setUseEcef: (v: boolean) => void;
   setShowEciAxes: (v: boolean) => void;
+  setOnlineMode: (v: boolean) => void;
 }
 
 export const useUiStore = create<UiState>((set) => ({
@@ -26,6 +28,7 @@ export const useUiStore = create<UiState>((set) => ({
   showIonoLayer: false,
   useEcef: false,  // ECI domyślnie — czyste elipsy orbit
   showEciAxes: false,
+  onlineMode: false,
 
   setOpenPanel: (p) => set({ openPanel: p }),
   togglePanel: (p) => set(s => ({ openPanel: s.openPanel === p ? null : p })),
@@ -34,4 +37,5 @@ export const useUiStore = create<UiState>((set) => ({
   setShowIonoLayer: (v) => set({ showIonoLayer: v }),
   setUseEcef: (v) => set({ useEcef: v }),
   setShowEciAxes: (v) => set({ showEciAxes: v }),
+  setOnlineMode: (v) => set({ onlineMode: v }),
 }));
