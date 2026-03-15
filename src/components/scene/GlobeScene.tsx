@@ -26,14 +26,20 @@ function SceneController() {
   useEffect(() => { anim.useEcef = useEcef; }, [useEcef]);
   useEffect(() => { anim.traceHours = traceHours; }, [traceHours]);
 
-  // Suwak UI → anim.timeSec (tylko gdy NIE animujemy)
+  // Suwak UI → anim.timeSec (tylko gdy NIE animujemy i NIE live)
   useEffect(() => {
-    if (!animating) {
+    if (!animating && !anim.realtimeClock) {
       anim.timeSec = timeHours * 3600;
     }
   }, [timeHours, animating]);
 
   useFrame((_, delta) => {
+    // Live: zegar ścienny 1:1, bez mnożnika prędkości
+    if (anim.realtimeClock) {
+      anim.timeSec = (Date.now() - anim.realtimeOriginMs) / 1000;
+      return;
+    }
+    // Symulacja: 4320× przy speed=1
     if (!anim.animating) return;
     anim.timeSec = (anim.timeSec + delta * anim.animSpeed * 4320) % (48 * 3600);
     frameCount.current++;

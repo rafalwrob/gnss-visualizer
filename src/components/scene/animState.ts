@@ -10,4 +10,7 @@ export const anim = {
   animSpeed: 1,
   showHarmonics: true,
   useEcef: false,
+  /** Live mode: timeSec śledzi zegar ścienny 1:1 */
+  realtimeClock: false,
+  realtimeOriginMs: 0,
 };

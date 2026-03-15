@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useTimeStore } from '../../store/timeStore';
 import { useUiStore } from '../../store/uiStore';
+import { anim } from '../scene/animState';
 
 function UtcClock() {
   const [utc, setUtc] = useState(() => new Date().toUTCString().slice(17, 25));
@@ -8,7 +9,21 @@ function UtcClock() {
     const id = setInterval(() => setUtc(new Date().toUTCString().slice(17, 25)), 1000);
     return () => clearInterval(id);
   }, []);
-  return <span className="font-mono text-[#3fb950]">{utc} UTC</span>;
+  return <span className="font-mono text-[#3fb950] text-xs">{utc} UTC</span>;
+}
+
+function ElapsedTime() {
+  const [elapsed, setElapsed] = useState('0s');
+  useEffect(() => {
+    const id = setInterval(() => {
+      const sec = Math.floor((Date.now() - anim.realtimeOriginMs) / 1000);
+      if (sec < 60) setElapsed(`${sec}s`);
+      else if (sec < 3600) setElapsed(`${Math.floor(sec / 60)}m ${sec % 60}s`);
+      else setElapsed(`${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}m`);
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+  return <span className="text-[#484f58] text-[9px] font-mono">od {elapsed}</span>;
 }
 
 export function TimeControl() {
@@ -20,62 +35,61 @@ export function TimeControl() {
       onlineMode ? 'border-[#238636]' : 'border-[#30363d]'
     }`}>
 
-      {/* Nagłówek */}
-      <div className="flex items-center justify-between mb-2">
-        {onlineMode ? (
-          <>
+      {onlineMode ? (
+        /* ===== LIVE MODE ===== */
+        <>
+          <div className="flex items-center justify-between mb-1">
             <span className="flex items-center gap-1.5 text-[#3fb950] font-bold text-[10px]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse inline-block" />
-              LIVE
+              LIVE · GPS
             </span>
             <UtcClock />
-          </>
-        ) : (
-          <>
+          </div>
+          <div className="mb-3">
+            <ElapsedTime />
+          </div>
+        </>
+      ) : (
+        /* ===== SIMULATION MODE ===== */
+        <>
+          <div className="flex items-center justify-between mb-1">
             <span className="text-[#8b949e]">Czas symulacji</span>
             <span className="text-[#58a6ff] font-bold">{timeHours.toFixed(2)}h</span>
-          </>
-        )}
-      </div>
+          </div>
+          <input
+            type="range" min={0} max={48} step={0.01} value={timeHours}
+            onChange={e => setTimeHours(parseFloat(e.target.value))}
+            className="w-full accent-blue-500 mb-2"
+          />
+          <div className="flex gap-2 mb-2">
+            <button
+              onClick={() => setAnimating(!animating)}
+              className={`flex-1 py-1 rounded text-xs font-bold transition-colors ${
+                animating ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-[#238636] hover:bg-[#2ea043] text-white'
+              }`}
+            >
+              {animating ? '⏸ STOP' : '▶ ANIMUJ'}
+            </button>
+            <button
+              onClick={() => { setAnimating(false); setTimeHours(0); }}
+              className="px-2 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#8b949e]"
+            >
+              ↺
+            </button>
+          </div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[#8b949e]">Prędkość</span>
+            <span className="text-[#7ee787]">{animSpeed.toFixed(1)}×</span>
+          </div>
+          <input
+            type="range" min={0.1} max={20} step={0.1} value={animSpeed}
+            onChange={e => setAnimSpeed(parseFloat(e.target.value))}
+            className="w-full accent-green-500 mb-2"
+          />
+        </>
+      )}
 
-      {/* Suwak czasu — zablokowany w trybie online */}
-      <div className={onlineMode ? 'opacity-30 pointer-events-none select-none mb-2' : 'mb-2'}>
-        <input
-          type="range" min={0} max={48} step={0.01} value={timeHours}
-          onChange={e => setTimeHours(parseFloat(e.target.value))}
-          className="w-full accent-blue-500"
-        />
-      </div>
-
-      {/* Animacja + prędkość — zawsze aktywne */}
-      <div className="flex gap-2 mb-2">
-        <button
-          onClick={() => setAnimating(!animating)}
-          className={`flex-1 py-1 rounded text-xs font-bold transition-colors ${
-            animating ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-[#238636] hover:bg-[#2ea043] text-white'
-          }`}
-        >
-          {animating ? '⏸ STOP' : '▶ ANIMUJ'}
-        </button>
-        <button
-          onClick={() => { setAnimating(false); setTimeHours(0); }}
-          className="px-2 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#8b949e]"
-        >
-          ↺
-        </button>
-      </div>
-
-      <div className="flex items-center justify-between mb-1">
-        <span className="text-[#8b949e]">Prędkość</span>
-        <span className="text-[#7ee787]">{animSpeed.toFixed(1)}×</span>
-      </div>
-      <input
-        type="range" min={0.1} max={20} step={0.1} value={animSpeed}
-        onChange={e => setAnimSpeed(parseFloat(e.target.value))}
-        className="w-full accent-green-500 mb-2"
-      />
-
-      {/* Ślad orbity */}
+      {/* Ślad orbity — zawsze widoczny */}
       <div className="flex items-center justify-between mb-1">
         <span className="text-[#8b949e]">Ślad orbity</span>
         <span className="text-[#a371f7]">
@@ -90,12 +104,6 @@ export function TimeControl() {
       <div className="flex justify-between text-[9px] text-[#484f58] mt-0.5">
         <span>0.5h</span><span>12h</span><span>24h</span><span>48h</span>
       </div>
-
-      {onlineMode && (
-        <div className="mt-2 text-[9px] text-[#484f58] border-t border-[#30363d] pt-2">
-          Start: aktualna pozycja GPS · prędkość regulowana
-        </div>
-      )}
     </div>
   );
 }
