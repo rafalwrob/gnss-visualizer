@@ -21,8 +21,10 @@ interface GpRecord {
 }
 
 interface SystemConfig {
-  /** CelesTrak GROUP= parametr */
-  group: string;
+  /** CelesTrak GROUP= parametr (alternatywa: catnrList) */
+  group?: string;
+  /** Lista NORAD CATNR — gdy GROUP nie istnieje (np. QZSS) */
+  catnrList?: number[];
   /** Prefiks PRN (G, E, R, C, J, I) */
   prefix: string;
   /** Liczba płaszczyzn orbitalnych (do podziału kolorów) */
@@ -63,11 +65,11 @@ const CONFIGS: Partial<Record<GnssSystem, SystemConfig>> = {
     prnExtract: (_name, idx) => `C${String(idx + 1).padStart(2, '0')}`,
   },
   qzss: {
-    group: 'qzss', prefix: 'J', planes: 1, nameFilter: '',
-    prnExtract: (name, idx) => {
-      const m = name.match(/QZS-?(\d+)/i);
-      return m ? `J${String(parseInt(m[1])).padStart(2, '0')}` : `J${String(idx + 1).padStart(2, '0')}`;
-    },
+    // CelesTrak nie ma GROUP=qzss — pobieramy po NORAD CATNR
+    // QZS-1 (Michibiki-1), QZS-2, QZS-3, QZS-4, QZS-1R (Michibiki-1R)
+    catnrList: [37158, 42738, 42917, 42965, 49336],
+    prefix: 'J', planes: 1, nameFilter: '',
+    prnExtract: (_name, idx) => `J${String(idx + 1).padStart(2, '0')}`,
   },
   navic: {
     group: 'irnss', prefix: 'I', planes: 2, nameFilter: '',
@@ -99,6 +101,21 @@ function writeCache(sys: GnssSystem, data: GpRecord[]) {
 
 // ---------- Fetch ----------
 
+const BASE = 'https://celestrak.org/NORAD/elements/gp.php';
+
+async function fetchOne(url: string): Promise<GpRecord[]> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`CelesTrak ${res.status}: ${res.statusText}`);
+  const text = await res.text();
+  try {
+    return JSON.parse(text) as GpRecord[];
+  } catch {
+    // CelesTrak zwraca tekst błędu gdy endpoint nie istnieje
+    const msg = text.slice(0, 120).replace(/<[^>]+>/g, '').trim();
+    throw new Error(`CelesTrak: ${msg || 'nieprawidłowa odpowiedź'}`);
+  }
+}
+
 async function fetchGp(system: GnssSystem): Promise<GpRecord[]> {
   const cfg = CONFIGS[system];
   if (!cfg) throw new Error(`System ${system} nie jest obsługiwany w trybie online`);
@@ -106,10 +123,17 @@ async function fetchGp(system: GnssSystem): Promise<GpRecord[]> {
   const cached = readCache(system);
   if (cached) return cached;
 
-  const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${cfg.group}&FORMAT=json`;
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`CelesTrak ${res.status}: ${res.statusText}`);
-  const data: GpRecord[] = await res.json();
+  let data: GpRecord[];
+  if (cfg.catnrList) {
+    // Parallel fetch po NORAD CATNR (dla systemów bez dedykowanej grupy)
+    const results = await Promise.all(
+      cfg.catnrList.map(id => fetchOne(`${BASE}?CATNR=${id}&FORMAT=json`))
+    );
+    data = results.flat();
+  } else {
+    data = await fetchOne(`${BASE}?GROUP=${cfg.group}&FORMAT=json`);
+  }
+
   writeCache(system, data);
   return data;
 }
@@ -158,11 +182,20 @@ export async function fetchConstellation(system: GnssSystem): Promise<SatelliteR
   const records = await fetchGp(system);
   const nowSec  = Date.now() / 1000;
 
-  const filtered = cfg.nameFilter
+  const byName = cfg.nameFilter
     ? records.filter(r => r.OBJECT_NAME.toUpperCase().includes(cfg.nameFilter.toUpperCase()))
     : records;
 
-  return filtered
+  // Usuń obiekty których orbita przecina Ziemię (np. satelity w orbicie transferowej)
+  // Perigeum musi być >10% ponad powierzchnią Ziemi
+  const MIN_PERIGEE = R_E * 1.1;
+  const sane = byName.filter(r => {
+    const n = (r.MEAN_MOTION * PI2) / SEC_PER_DAY;
+    const a = r.SEMIMAJOR_AXIS ? r.SEMIMAJOR_AXIS * 1000 : Math.cbrt(MU / (n * n));
+    return a * (1 - r.ECCENTRICITY) > MIN_PERIGEE;
+  });
+
+  return sane
     .map((r, idx) => gpToRecord(r, nowSec, system, cfg, idx))
     .sort((a, b) => a.prn.localeCompare(b.prn, undefined, { numeric: true }));
 }
