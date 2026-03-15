@@ -66,8 +66,9 @@ const CONFIGS: Partial<Record<GnssSystem, SystemConfig>> = {
   },
   qzss: {
     // CelesTrak nie ma GROUP=qzss — pobieramy po NORAD CATNR
-    // QZS-1 (Michibiki-1), QZS-2, QZS-3, QZS-4, QZS-1R (Michibiki-1R)
-    catnrList: [37158, 42738, 42917, 42965, 49336],
+    // QZS-2, QZS-3, QZS-4, QZS-1R (operacyjne od 2017-2021)
+    // POMINIĘTY: QZS-1 (NORAD 37158) — wycofany 2021, na orbicie cmentarnej (a=46098km, T=27.4h)
+    catnrList: [42738, 42917, 42965, 49336],
     prefix: 'J', planes: 1, nameFilter: '',
     prnExtract: (_name, idx) => `J${String(idx + 1).padStart(2, '0')}`,
   },
