@@ -24,7 +24,7 @@ export const useUiStore = create<UiState>((set) => ({
   showGroundTrack: true,
   showHarmonics: true,
   showIonoLayer: false,
-  useEcef: true,
+  useEcef: false,  // ECI domyślnie — czyste elipsy orbit
   showEciAxes: false,
 
   setOpenPanel: (p) => set({ openPanel: p }),

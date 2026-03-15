@@ -9,25 +9,72 @@ import { useUiStore } from '../store/uiStore';
 
 type Tab = 'orbital' | 'satellites' | 'kepler' | 'settings';
 
+function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex items-center justify-between cursor-pointer">
+      <span className="text-[#8b949e] text-[10px]">{label}</span>
+      <div
+        onClick={() => onChange(!value)}
+        className={`w-8 h-4 rounded-full relative transition-colors cursor-pointer ${value ? 'bg-[#238636]' : 'bg-[#21262d]'}`}
+      >
+        <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${value ? 'translate-x-4' : 'translate-x-0.5'}`} />
+      </div>
+    </label>
+  );
+}
+
 export function Visualizer() {
   const [activeTab, setActiveTab] = useState<Tab>('orbital');
-  const { showHarmonics, useEcef, showGroundTrack, setShowHarmonics, setUseEcef, setShowGroundTrack } = useUiStore();
+  const {
+    showHarmonics, useEcef, showGroundTrack,
+    setShowHarmonics, setUseEcef, setShowGroundTrack,
+  } = useUiStore();
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'orbital', label: 'Orbita' },
+    { id: 'orbital',    label: 'Orbita' },
     { id: 'satellites', label: 'Satelity' },
-    { id: 'kepler', label: 'Kepler' },
-    { id: 'settings', label: 'Opcje' },
+    { id: 'kepler',     label: 'Kepler' },
+    { id: 'settings',   label: 'Opcje' },
   ];
 
   return (
     <div className="flex h-screen bg-[#0a0e17] text-[#e6edf3] overflow-hidden">
-      {/* Lewa kolumna — kontrolki */}
+
+      {/* Lewa kolumna */}
       <div className="w-72 flex-shrink-0 flex flex-col gap-2 p-2 overflow-y-auto border-r border-[#21262d]">
+
         {/* Nagłówek */}
         <div className="pb-2 border-b border-[#21262d]">
-          <div className="text-[#58a6ff] font-bold text-sm tracking-wider">GNSS Visualizer</div>
-          <div className="text-[#6e7681] text-[9px]">3D Satellite Navigator</div>
+          <div className="text-[#58a6ff] font-bold text-sm tracking-wider font-mono">GNSS Visualizer</div>
+          <div className="text-[#6e7681] text-[9px] font-mono">3D Satellite Navigator · α</div>
+        </div>
+
+        {/* ECI / ECEF — widoczny toggle w głównym UI */}
+        <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-2">
+          <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-1.5 font-mono">Układ współrzędnych</div>
+          <div className="flex gap-1">
+            {(['ECI', 'ECEF'] as const).map(sys => {
+              const active = sys === 'ECEF' ? useEcef : !useEcef;
+              return (
+                <button
+                  key={sys}
+                  onClick={() => setUseEcef(sys === 'ECEF')}
+                  className={`flex-1 py-1.5 rounded text-[10px] font-mono font-bold border transition-all ${
+                    active
+                      ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
+                      : 'bg-transparent border-[#30363d] text-[#6e7681] hover:border-[#58a6ff] hover:text-[#58a6ff]'
+                  }`}
+                >
+                  {sys}
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-[9px] text-[#484f58] mt-1.5 font-mono">
+            {useEcef
+              ? 'ECEF — Ziemia nieruchoma, satelity orbitują'
+              : 'ECI — inercjalny, czyste elipsy orbit'}
+          </div>
         </div>
 
         <SystemPanel />
@@ -39,7 +86,7 @@ export function Visualizer() {
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`flex-1 py-1 rounded text-[10px] transition-colors ${
+              className={`flex-1 py-1 rounded text-[10px] font-mono transition-colors ${
                 activeTab === t.id
                   ? 'bg-[#21262d] text-[#58a6ff]'
                   : 'text-[#8b949e] hover:text-[#e6edf3]'
@@ -54,33 +101,35 @@ export function Visualizer() {
         {activeTab === 'satellites' && <SatelliteList />}
         {activeTab === 'kepler' && <KeplerStepper />}
         {activeTab === 'settings' && (
-          <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 text-xs font-mono space-y-2">
-            <div className="text-[#8b949e] text-[10px] uppercase tracking-wider mb-2">Ustawienia</div>
-            {[
-              { label: 'Perturbacje harmoniczne', value: showHarmonics, setter: setShowHarmonics },
-              { label: 'Układ ECEF', value: useEcef, setter: setUseEcef },
-              { label: 'Ślad naziemny', value: showGroundTrack, setter: setShowGroundTrack },
-            ].map(({ label, value, setter }) => (
-              <label key={label} className="flex items-center justify-between cursor-pointer">
-                <span className="text-[#8b949e] text-[10px]">{label}</span>
-                <div
-                  onClick={() => setter(!value)}
-                  className={`w-8 h-4 rounded-full relative transition-colors cursor-pointer ${value ? 'bg-[#238636]' : 'bg-[#21262d]'}`}
-                >
-                  <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform ${value ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                </div>
-              </label>
-            ))}
+          <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 font-mono space-y-3">
+            <div className="text-[#8b949e] text-[9px] uppercase tracking-wider">Ustawienia wizualizacji</div>
+
+            <Toggle
+              label="Perturbacje harmoniczne (J₂)"
+              value={showHarmonics}
+              onChange={setShowHarmonics}
+            />
+            <div className="text-[9px] text-[#484f58] -mt-1 pl-0">
+              Poprawki Crc, Crs, Cuc, Cus, Cic, Cis + dn, IDOT.
+              Różnica ~5–200 m vs orbita Keplera.
+            </div>
+
+            <Toggle
+              label="Ślad naziemny (ground track)"
+              value={showGroundTrack}
+              onChange={setShowGroundTrack}
+            />
+            <div className="text-[9px] text-[#484f58] -mt-1">
+              Projekcja toru satelity na powierzchnię Ziemi.
+            </div>
           </div>
         )}
       </div>
 
-      {/* Główny widok 3D */}
+      {/* Główna scena 3D */}
       <div className="flex-1 relative">
         <GlobeScene />
-
-        {/* Watermark */}
-        <div className="absolute bottom-2 right-2 text-[9px] text-[#30363d] font-mono pointer-events-none">
+        <div className="absolute bottom-2 right-2 text-[9px] text-[#21262d] font-mono pointer-events-none select-none">
           GNSS Visualizer α · Faza 1
         </div>
       </div>

@@ -1,42 +1,52 @@
 import { useRef, useMemo } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import type { KeplerianEphemeris } from '../../types/ephemeris';
 import { SCENE_SCALE } from './Earth';
+import { anim } from './animState';
 
 interface SatelliteMarkerProps {
   eph: KeplerianEphemeris;
   color: string;
-  tSec: number;
-  useEcef: boolean;
-  harmonics: boolean;
   selected?: boolean;
   onClick?: () => void;
 }
 
-export function SatelliteMarker({
-  eph, color, tSec, useEcef, harmonics, selected = false, onClick,
-}: SatelliteMarkerProps) {
+export function SatelliteMarker({ eph, color, selected = false, onClick }: SatelliteMarkerProps) {
   const meshRef = useRef<THREE.Mesh>(null!);
+  const glowRef = useRef<THREE.Mesh>(null!);
 
-  const position = useMemo(() => {
-    const pos = computeGPSPosition(eph, tSec, useEcef, harmonics);
-    // Three.js: Y = hight axis; konwersja z ECEF (X=right, Y=up, Z=toward)
-    return new THREE.Vector3(pos.x * SCENE_SCALE, pos.z * SCENE_SCALE, -pos.y * SCENE_SCALE);
-  }, [eph, tSec, useEcef, harmonics]);
+  const size = selected ? 0.026 : 0.018;
 
-  const size = selected ? 0.025 : 0.018;
+  /** Per-frame: bezpośrednia mutacja mesh.position — zero React re-renderów */
+  useFrame(() => {
+    const pos = computeGPSPosition(eph, anim.timeSec, anim.useEcef, anim.showHarmonics);
+    const x = pos.x * SCENE_SCALE;
+    const y = pos.z * SCENE_SCALE;
+    const z = -pos.y * SCENE_SCALE;
+    meshRef.current?.position.set(x, y, z);
+    glowRef.current?.position.set(x, y, z);
+  });
+
+  const mat = useMemo(
+    () => new THREE.MeshBasicMaterial({ color }),
+    [color],
+  );
+
+  const glowMat = useMemo(
+    () => new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.2, wireframe: true }),
+    [color],
+  );
 
   return (
-    <group position={position} onClick={onClick}>
-      <mesh ref={meshRef}>
+    <group onClick={onClick}>
+      <mesh ref={meshRef} material={mat}>
         <sphereGeometry args={[size, 8, 8]} />
-        <meshBasicMaterial color={color} />
       </mesh>
       {selected && (
-        <mesh>
-          <sphereGeometry args={[size * 1.8, 8, 8]} />
-          <meshBasicMaterial color={color} transparent opacity={0.25} wireframe />
+        <mesh ref={glowRef} material={glowMat}>
+          <sphereGeometry args={[size * 2.2, 8, 8]} />
         </mesh>
       )}
     </group>
