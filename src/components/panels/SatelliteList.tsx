@@ -27,19 +27,18 @@ function SatelliteDetails({ idx }: { idx: number }) {
   ];
 
   return (
-    <div className="border-t border-[#30363d] px-3 py-2">
-      <div
-        className="w-2 h-2 rounded-full mb-2 inline-block mr-1.5"
-        style={{ backgroundColor: sat.color }}
-      />
-      <span className="text-[10px] text-[#e6edf3] font-bold">{sat.prn}</span>
-      {db && <span className="text-[9px] text-[#8b949e] ml-1">· {db.name}</span>}
-      <table className="w-full mt-1.5">
+    <div className="border-t border-[#30363d] px-3 py-3">
+      <div className="flex items-center gap-2 mb-2">
+        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: sat.color }} />
+        <span className="text-[13px] text-[#e6edf3] font-bold font-mono">{sat.prn}</span>
+        {db && <span className="text-[11px] text-[#8b949e] font-mono">{db.name}</span>}
+      </div>
+      <table className="w-full">
         <tbody>
           {rows.map(([k, v]) => (
             <tr key={k}>
-              <td className="text-[9px] text-[#8b949e] pr-2 py-0.5 w-8">{k}</td>
-              <td className="text-[9px] text-[#e6edf3] font-mono">{v}</td>
+              <td className="text-[11px] text-[#8b949e] font-mono pr-3 py-0.5 w-10">{k}</td>
+              <td className="text-[11px] text-[#c9d1d9] font-mono">{v}</td>
             </tr>
           ))}
         </tbody>
@@ -53,7 +52,6 @@ export function SatelliteList() {
   const fileRef = useRef<HTMLInputElement>(null);
   const selectedRowRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll gdy zmienia się wybrany satelita
   useEffect(() => {
     selectedRowRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }, [selectedIndex]);
@@ -79,12 +77,14 @@ export function SatelliteList() {
 
   if (mode === 'single') {
     return (
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 text-xs font-mono">
-        <div className="text-[#8b949e] text-[10px] uppercase tracking-wider mb-2">RINEX / Plik nawigacyjny</div>
+      <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-4 font-mono">
+        <div className="text-[#8b949e] text-[11px] uppercase tracking-wider mb-3">
+          RINEX / Plik nawigacyjny
+        </div>
         <input ref={fileRef} type="file" accept=".n,.rnx,.nav,.22n,.23n,.21n,.20n" className="hidden" onChange={handleFile} />
         <button
           onClick={() => fileRef.current?.click()}
-          className="w-full py-2 border-2 border-dashed border-[#30363d] rounded text-[#8b949e] hover:border-[#58a6ff] hover:text-[#58a6ff] transition-colors text-[10px]"
+          className="w-full py-3 border-2 border-dashed border-[#30363d] rounded text-[#8b949e] hover:border-[#58a6ff] hover:text-[#58a6ff] transition-colors text-xs"
         >
           Upuść plik RINEX lub kliknij
         </button>
@@ -93,23 +93,23 @@ export function SatelliteList() {
   }
 
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg text-xs font-mono">
-      <div className="flex items-center justify-between p-3 border-b border-[#30363d]">
-        <span className="text-[#8b949e] text-[10px] uppercase tracking-wider">
+    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg font-mono">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#30363d]">
+        <span className="text-[#8b949e] text-[11px] uppercase tracking-wider">
           Satelity ({satellites.length})
         </span>
         <div className="flex gap-1">
           <input ref={fileRef} type="file" accept=".n,.rnx,.nav,.22n,.23n,.21n,.20n" className="hidden" onChange={handleFile} />
           <button
             onClick={() => fileRef.current?.click()}
-            className="px-2 py-0.5 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[10px]"
+            className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[11px]"
           >
             + RINEX
           </button>
         </div>
       </div>
 
-      <div className="overflow-y-auto max-h-52">
+      <div className="overflow-y-auto max-h-56">
         {satellites.map((sat, i) => {
           const db = SAT_DB[sat.prn];
           const raan = (sat.eph.Omega0 * 180 / Math.PI).toFixed(0);
@@ -119,15 +119,15 @@ export function SatelliteList() {
               key={sat.prn}
               ref={isSelected ? selectedRowRef : null}
               onClick={() => selectSatellite(i)}
-              className={`flex items-center gap-2 px-3 py-1.5 cursor-pointer transition-colors ${
+              className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer transition-colors ${
                 isSelected ? 'bg-[#1c2b3a]' : 'hover:bg-[#161b22]'
               }`}
             >
-              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sat.color }} />
-              <span className="flex-1 truncate text-[10px] text-[#e6edf3]">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: sat.color }} />
+              <span className="flex-1 truncate text-xs text-[#e6edf3]">
                 {db ? `${sat.prn} · ${db.name}` : sat.prn}
               </span>
-              <span className="text-[9px] text-[#6e7681] flex-shrink-0">Ω={raan}°</span>
+              <span className="text-[11px] text-[#6e7681] flex-shrink-0">Ω={raan}°</span>
             </div>
           );
         })}

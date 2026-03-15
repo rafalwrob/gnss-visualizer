@@ -25,7 +25,7 @@ function ElapsedTime() {
     }, 1000);
     return () => clearInterval(id);
   }, []);
-  return <span className="text-[#484f58] text-[9px] font-mono">od {elapsed}</span>;
+  return <span className="text-[#484f58] text-[11px] font-mono">od {elapsed}</span>;
 }
 
 export function TimeControl() {
@@ -34,41 +34,43 @@ export function TimeControl() {
   const { activeSystem } = useSatelliteStore();
   const sysName = GNSS_SYSTEMS[activeSystem]?.name ?? activeSystem.toUpperCase();
 
+  const speedLabel = animSpeed < 10
+    ? `${animSpeed.toFixed(1)}×`
+    : animSpeed < 1000
+      ? `${Math.round(animSpeed)}×`
+      : `${(animSpeed / 1000).toFixed(1)}k×`;
+
   return (
-    <div className={`bg-[#0d1117] border rounded-lg p-3 text-xs font-mono transition-all ${
+    <div className={`bg-[#0d1117] border rounded-lg p-3 font-mono transition-all ${
       onlineMode ? 'border-[#238636]' : 'border-[#30363d]'
     }`}>
 
       {onlineMode ? (
-        /* ===== LIVE MODE ===== */
         <>
           <div className="flex items-center justify-between mb-1">
-            <span className="flex items-center gap-1.5 text-[#3fb950] font-bold text-[10px]">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse inline-block" />
+            <span className="flex items-center gap-1.5 text-[#3fb950] font-bold text-xs">
+              <span className="w-2 h-2 rounded-full bg-[#3fb950] animate-pulse inline-block" />
               LIVE · {sysName}
             </span>
             <UtcClock />
           </div>
-          <div className="mb-3">
-            <ElapsedTime />
-          </div>
+          <ElapsedTime />
         </>
       ) : (
-        /* ===== SIMULATION MODE ===== */
         <>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[#8b949e]">Czas symulacji</span>
-            <span className="text-[#58a6ff] font-bold">{timeHours.toFixed(2)}h</span>
+            <span className="text-[#8b949e] text-[11px]">Czas symulacji</span>
+            <span className="text-[#58a6ff] font-bold text-xs">{timeHours.toFixed(2)} h</span>
           </div>
           <input
             type="range" min={0} max={48} step={0.01} value={timeHours}
             onChange={e => setTimeHours(parseFloat(e.target.value))}
             className="w-full accent-blue-500 mb-2"
           />
-          <div className="flex gap-2 mb-2">
+          <div className="flex gap-2 mb-3">
             <button
               onClick={() => setAnimating(!animating)}
-              className={`flex-1 py-1 rounded text-xs font-bold transition-colors ${
+              className={`flex-1 py-1.5 rounded text-xs font-bold transition-colors ${
                 animating ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-[#238636] hover:bg-[#2ea043] text-white'
               }`}
             >
@@ -76,18 +78,14 @@ export function TimeControl() {
             </button>
             <button
               onClick={() => { setAnimating(false); setTimeHours(0); }}
-              className="px-2 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#8b949e]"
+              className="px-3 py-1.5 rounded bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] text-sm"
             >
               ↺
             </button>
           </div>
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[#8b949e]">Prędkość</span>
-            <span className="text-[#7ee787]">
-              {animSpeed < 10 ? `${animSpeed.toFixed(1)}×`
-                : animSpeed < 1000 ? `${Math.round(animSpeed)}×`
-                : `${(animSpeed / 1000).toFixed(1)}k×`}
-            </span>
+            <span className="text-[#8b949e] text-[11px]">Prędkość</span>
+            <span className="text-[#7ee787] text-xs font-bold">{speedLabel}</span>
           </div>
           <input
             type="range" min={0} max={4} step={0.02}
@@ -95,17 +93,17 @@ export function TimeControl() {
             onChange={e => setAnimSpeed(Math.round(Math.pow(10, parseFloat(e.target.value))))}
             className="w-full accent-green-500 mb-1"
           />
-          <div className="flex justify-between text-[9px] text-[#484f58] mb-2">
+          <div className="flex justify-between text-[10px] text-[#484f58] mb-2">
             <span>1×</span><span>10×</span><span>100×</span><span>1k×</span><span>10k×</span>
           </div>
         </>
       )}
 
-      {/* Ślad orbity — zawsze widoczny */}
+      {/* Ślad orbity */}
       <div className="flex items-center justify-between mb-1">
-        <span className="text-[#8b949e]">Ślad orbity</span>
-        <span className="text-[#a371f7]">
-          {traceHours >= 12 ? `${traceHours.toFixed(0)}h` : `${traceHours.toFixed(1)}h`}
+        <span className="text-[#8b949e] text-[11px]">Ślad orbity</span>
+        <span className="text-[#a371f7] text-xs font-bold">
+          {traceHours >= 12 ? `${traceHours.toFixed(0)} h` : `${traceHours.toFixed(1)} h`}
         </span>
       </div>
       <input
@@ -113,8 +111,8 @@ export function TimeControl() {
         onChange={e => setTraceHours(parseFloat(e.target.value))}
         className="w-full accent-purple-500"
       />
-      <div className="flex justify-between text-[9px] text-[#484f58] mt-0.5">
-        <span>0.5h</span><span>12h</span><span>24h</span><span>48h</span>
+      <div className="flex justify-between text-[10px] text-[#484f58] mt-0.5">
+        <span>0.5 h</span><span>12 h</span><span>24 h</span><span>48 h</span>
       </div>
     </div>
   );

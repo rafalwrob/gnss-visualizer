@@ -54,7 +54,6 @@ export function SystemPanel() {
       });
   }
 
-  // Gdy tryb online — pobierz dane dla aktywnego systemu
   useEffect(() => {
     if (!onlineMode) return;
     doFetch(activeSystem);
@@ -77,10 +76,11 @@ export function SystemPanel() {
   }
 
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 text-xs font-mono">
-      <div className="text-[#8b949e] mb-2 text-[10px] uppercase tracking-wider">System GNSS</div>
+    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 font-mono">
+      <div className="text-[#8b949e] text-[11px] uppercase tracking-wider mb-2">System GNSS</div>
 
-      <div className="grid grid-cols-3 gap-1 mb-3">
+      {/* Siatka systemów */}
+      <div className="grid grid-cols-3 gap-1.5 mb-3">
         {SYSTEMS.map(sys => {
           const info = GNSS_SYSTEMS[sys];
           const active = activeSystem === sys;
@@ -88,7 +88,7 @@ export function SystemPanel() {
             <button
               key={sys}
               onClick={() => setActiveSystem(sys)}
-              className={`py-1.5 rounded text-[10px] font-bold transition-all border flex flex-col items-center gap-0.5 ${
+              className={`py-2 rounded text-xs font-bold transition-all border flex flex-col items-center gap-0.5 ${
                 active
                   ? 'text-white border-transparent'
                   : 'bg-transparent text-[#8b949e] border-[#30363d] hover:border-[#58a6ff] hover:text-[#e6edf3]'
@@ -96,7 +96,7 @@ export function SystemPanel() {
               style={active ? { backgroundColor: info.color, borderColor: info.color } : {}}
             >
               <span>{info.name}</span>
-              <span className={`text-[8px] font-normal ${active ? 'text-white/70' : 'text-[#484f58]'}`}>
+              <span className={`text-[10px] font-normal ${active ? 'text-white/75' : 'text-[#484f58]'}`}>
                 {SAT_COUNT[sys]}
               </span>
             </button>
@@ -104,36 +104,30 @@ export function SystemPanel() {
         })}
       </div>
 
-      <div className="flex gap-1 mb-3">
-        <button
-          onClick={() => setMode('single')}
-          className={`flex-1 py-1 rounded text-[10px] border transition-all ${
-            mode === 'single'
-              ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
-              : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]'
-          }`}
-        >
-          Pojedynczy
-        </button>
-        <button
-          onClick={() => setMode('constellation')}
-          className={`flex-1 py-1 rounded text-[10px] border transition-all ${
-            mode === 'constellation'
-              ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
-              : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]'
-          }`}
-        >
-          Konstelacja
-        </button>
+      {/* Tryb */}
+      <div className="flex gap-1.5 mb-3">
+        {(['single', 'constellation'] as const).map(m => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={`flex-1 py-1.5 rounded text-[11px] border transition-all ${
+              mode === m
+                ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
+                : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]'
+            }`}
+          >
+            {m === 'single' ? 'Pojedynczy' : 'Konstelacja'}
+          </button>
+        ))}
       </div>
 
       {/* Online / Offline */}
-      <div className="border border-[#30363d] rounded p-2 mb-2">
+      <div className="border border-[#30363d] rounded p-2.5">
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[#8b949e] text-[10px]">Dane na żywo</span>
+          <span className="text-[#8b949e] text-[11px]">Dane na żywo</span>
           <button
             onClick={handleOnlineToggle}
-            className={`px-2 py-0.5 rounded text-[9px] font-bold border transition-all ${
+            className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
               onlineMode
                 ? 'bg-[#238636] border-[#238636] text-white'
                 : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#3fb950]'
@@ -144,42 +138,34 @@ export function SystemPanel() {
         </div>
 
         {onlineMode && !isOnlineSupported(activeSystem) && (
-          <div className="text-[#8b949e] text-[9px]">
-            System {GNSS_SYSTEMS[activeSystem].name} niedostępny online
+          <div className="text-[#8b949e] text-[11px]">
+            {GNSS_SYSTEMS[activeSystem].name} niedostępny online
           </div>
         )}
-
         {onlineMode && isOnlineSupported(activeSystem) && fetchState === 'loading' && (
-          <div className="text-[#58a6ff] text-[9px] animate-pulse">
-            Pobieranie {GNSS_SYSTEMS[activeSystem].name} z CelesTrak…
+          <div className="text-[#58a6ff] text-[11px] animate-pulse">
+            Pobieranie {GNSS_SYSTEMS[activeSystem].name}…
           </div>
         )}
-
         {onlineMode && isOnlineSupported(activeSystem) && fetchState === 'ok' && (
           <div className="flex items-center justify-between">
-            <span className="text-[#3fb950] text-[9px]">
+            <span className="text-[#3fb950] text-[11px]">
               ✓ {cacheAge !== null ? formatAge(cacheAge) : 'załadowano'}
             </span>
-            <button
-              onClick={handleRefresh}
-              className="text-[#58a6ff] text-[9px] hover:text-[#79c0ff]"
-            >
+            <button onClick={handleRefresh} className="text-[#58a6ff] text-[11px] hover:text-[#79c0ff]">
               Odśwież
             </button>
           </div>
         )}
-
         {fetchState === 'error' && (
-          <div className="text-[#f85149] text-[9px] leading-tight">
-            ✗ {fetchError}
-          </div>
+          <div className="text-[#f85149] text-[11px] leading-tight">✗ {fetchError}</div>
         )}
       </div>
 
       {!onlineMode && (
         <button
           onClick={loadExample}
-          className="w-full py-1.5 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[10px] transition-colors"
+          className="w-full mt-2.5 py-2 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[11px] transition-colors"
         >
           Załaduj przykład
         </button>
