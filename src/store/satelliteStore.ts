@@ -134,16 +134,18 @@ function buildQZSS(): SatelliteRecord[] {
   const c = PLANE_COLORS.qzss;
   const sats: SatelliteRecord[] = [];
 
-  // 3 QZO - ta sama płaszczyzna (RAAN=45°), offset M0 co 120°
-  // Przy RAAN+90°=135°E → apogeum nad Japonią
+  // 3 QZO - ta sama płaszczyzna (RAAN=45°), offset M0 zaczynając od apogeum
+  // M0=180° → satelita ZACZYNA w apogeum → RAAN+90°=135°E = Japonia ✓
+  // Kolejne 2 saty przesunięte o 120°: 300°, 60° → ciągłe pokrycie
+  const qzoM0 = [180, 300, 60];
   for (let k = 0; k < 3; k++) {
     sats.push(sat(`J${k + 1}`, 'qzss', k, c[0],
       {
         a: 42165000, e: 0.075, i0: D(43),
-        Omega0: D(45),          // RAAN=45° → apogeum nad 135°E
-        omega: D(270),          // argument peryapsis 270° → apogeum nad N
+        Omega0: D(45),          // RAAN=45° → apogeum nad 135°E (Japonia)
+        omega: D(270),          // ω=270° → apogeum w półkuli N
         OmegaDot: 0,
-        M0: D(k * 120),         // 3 saty co 120° → jeden zawsze blisko Japonii
+        M0: D(qzoM0[k]),
       }
     ));
   }
@@ -175,20 +177,21 @@ function buildNavIC(): SatelliteRecord[] {
     ));
   });
 
-  // GSO Płaszczyzna A (55°E): 2 saty, M0=0° i 180°
+  // GSO Płaszczyzna A (55°E): 2 saty, M0=90° (+29°N) i M0=270° (-29°S)
+  // → wyraźnie oddzielone w szerokości geograficznej, oba przy 55°E
   sats.push(sat('II1', 'navic', 3, c[1],
-    { a: 42164000, e: 0.001, i0: D(29), Omega0: D(55), OmegaDot: 0, omega: 0, M0: 0 }
+    { a: 42164000, e: 0.001, i0: D(29), Omega0: D(55), OmegaDot: 0, omega: 0, M0: D(90) }
   ));
   sats.push(sat('II2', 'navic', 3, c[1],
-    { a: 42164000, e: 0.001, i0: D(29), Omega0: D(55), OmegaDot: 0, omega: 0, M0: D(180) }
+    { a: 42164000, e: 0.001, i0: D(29), Omega0: D(55), OmegaDot: 0, omega: 0, M0: D(270) }
   ));
 
-  // GSO Płaszczyzna B (111.75°E): 2 saty, M0=0° i 180°
+  // GSO Płaszczyzna B (111.75°E): 2 saty, M0=90° i M0=270°
   sats.push(sat('II3', 'navic', 4, c[2],
-    { a: 42164000, e: 0.001, i0: D(29), Omega0: D(111.75), OmegaDot: 0, omega: 0, M0: 0 }
+    { a: 42164000, e: 0.001, i0: D(29), Omega0: D(111.75), OmegaDot: 0, omega: 0, M0: D(90) }
   ));
   sats.push(sat('II4', 'navic', 4, c[2],
-    { a: 42164000, e: 0.001, i0: D(29), Omega0: D(111.75), OmegaDot: 0, omega: 0, M0: D(180) }
+    { a: 42164000, e: 0.001, i0: D(29), Omega0: D(111.75), OmegaDot: 0, omega: 0, M0: D(270) }
   ));
 
   return sats;
@@ -238,7 +241,30 @@ export const useSatelliteStore = create<SatelliteState>((set, get) => ({
 
   setActiveSystem: (sys) => {
     const info = GNSS_SYSTEMS[sys];
-    set({ activeSystem: sys, singleEph: { ...defaultEph(), a: info.a, i0: info.i0, e: info.e } });
+    const base = { ...defaultEph(), a: info.a, i0: info.i0, e: info.e };
+
+    // Dla systemów geosynchronicznych defaultEph() ma Omega0=0 (→ 0°E, Afryka)
+    // Ustawiamy sensowną pozycję startową w trybie pojedynczym
+    const overrides: Partial<KeplerianEphemeris> = (() => {
+      switch (sys) {
+        case 'qzss':
+          // QZO: apogeum nad 135°E (Japonia), M0=180° = start w apogeum
+          return { Omega0: D(45), omega: D(270), M0: D(180) };
+        case 'navic':
+          // GSO: figura-8 nad Indiami, centrum 83°E, start na równiku
+          return { a: 42164000, i0: D(29), Omega0: D(83), omega: 0, M0: 0 };
+        case 'beidou':
+          // Użyj MEO (nie GEO) jako domyślnego dla pojedynczego satelity
+          return { a: 27906000, i0: D(55), Omega0: D(90), OmegaDot: -7.3e-9 };
+        case 'sbas':
+          // GEO nad 83°E (GAGAN nad Indiami)
+          return { Omega0: D(83), i0: D(0.5) };
+        default:
+          return {};
+      }
+    })();
+
+    set({ activeSystem: sys, singleEph: { ...base, ...overrides } });
   },
 
   loadExample: () => {
