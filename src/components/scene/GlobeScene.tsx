@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
-import { Earth } from './Earth';
+import { Earth, SCENE_SCALE } from './Earth';
 import { SatelliteMarker } from './SatelliteMarker';
 import { OrbitTrail } from './OrbitTrail';
 import { GroundTrack } from './GroundTrack';
@@ -10,12 +10,17 @@ import { anim } from './animState';
 import { useSatelliteStore } from '../../store/satelliteStore';
 import { useTimeStore } from '../../store/timeStore';
 import { useUiStore } from '../../store/uiStore';
+import { useObserverStore } from '../../store/observerStore';
 import { OMEGA_E } from '../../constants/gnss';
+import { computeGPSPosition } from '../../services/orbital/keplerMath';
+import { satElevAz, latLonAltToEcef } from '../../services/coordinates/ecefEnu';
+import type { KeplerianEphemeris } from '../../types/ephemeris';
 
 /** Synchronizuje mutable anim{} z Zustand stores oraz obsługuje pętlę animacji */
 function SceneController() {
   const { animating, animSpeed, timeHours, traceHours, setTimeHours } = useTimeStore();
   const { showHarmonics, useEcef } = useUiStore();
+  const { enabled: obsEnabled, lat: obsLat, lon: obsLon, alt: obsAlt, minElevation } = useObserverStore();
 
   const frameCount = useRef(0);
 
@@ -25,6 +30,13 @@ function SceneController() {
   useEffect(() => { anim.showHarmonics = showHarmonics; }, [showHarmonics]);
   useEffect(() => { anim.useEcef = useEcef; }, [useEcef]);
   useEffect(() => { anim.traceHours = traceHours; }, [traceHours]);
+  useEffect(() => { anim.visibilityMode = obsEnabled; }, [obsEnabled]);
+  useEffect(() => {
+    anim.obsLat = obsLat;
+    anim.obsLon = obsLon;
+    anim.obsAlt = obsAlt;
+  }, [obsLat, obsLon, obsAlt]);
+  useEffect(() => { anim.obsMinElevation = minElevation; }, [minElevation]);
 
   // Suwak UI → anim.timeSec (tylko gdy NIE animujemy i NIE live)
   useEffect(() => {
@@ -64,11 +76,50 @@ function EarthAligned({ children }: { children: React.ReactNode }) {
   return <group ref={groupRef}>{children}</group>;
 }
 
+/**
+ * Ukrywa grupę gdy satelita jest poniżej horyzontu obserwatora.
+ * Czysto imperatywne — zero React re-renderów od widoczności.
+ */
+function SatVisibilityGate({ eph, children }: { eph: KeplerianEphemeris; children: React.ReactNode }) {
+  const groupRef = useRef<THREE.Group>(null!);
+
+  useFrame(() => {
+    const timeSec = anim.realtimeClock
+      ? (Date.now() - anim.realtimeOriginMs) / 1000
+      : anim.timeSec;
+    const { x, y, z } = computeGPSPosition(eph, timeSec, true, false);
+    const { el } = satElevAz(x, y, z, anim.obsLat, anim.obsLon, anim.obsAlt);
+    const vis = el >= anim.obsMinElevation;
+    if (groupRef.current.visible !== vis) groupRef.current.visible = vis;
+  });
+
+  return <group ref={groupRef}>{children}</group>;
+}
+
+/** Czerwona kropka na powierzchni Ziemi w pozycji obserwatora */
+function ObserverMarker() {
+  const meshRef = useRef<THREE.Mesh>(null!);
+
+  useFrame(() => {
+    const { x, y, z } = latLonAltToEcef(anim.obsLat, anim.obsLon, anim.obsAlt);
+    meshRef.current.position.set(x * SCENE_SCALE, z * SCENE_SCALE, -y * SCENE_SCALE);
+  });
+
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[0.015, 10, 10]} />
+      <meshBasicMaterial color="#ff4444" />
+    </mesh>
+  );
+}
+
 /** Zawartość sceny 3D */
 function SceneContent() {
   const { satellites, selectedIndex, mode, singleEph, selectSatellite } = useSatelliteStore();
   const { showHarmonics, showGroundTrack, useEcef, setActiveTab } = useUiStore();
+  const { enabled: obsEnabled, allSats } = useObserverStore();
 
+  const visibilityActive = obsEnabled && allSats.length > 0;
   const sats = mode === 'constellation' ? satellites : [];
 
   return (
@@ -81,7 +132,27 @@ function SceneContent() {
 
       <Earth />
 
-      {mode === 'constellation' && sats.map((sat, i) => (
+      {/* === TRYB WIDOCZNOŚCI — wszystkie konstelacje, tylko nad horyzontem === */}
+      {visibilityActive && (
+        <>
+          {allSats.map((sat) => (
+            <SatVisibilityGate key={sat.prn} eph={sat.eph}>
+              <SatelliteMarker
+                eph={sat.eph}
+                color={sat.color}
+                selected={false}
+                onClick={() => {}}
+              />
+            </SatVisibilityGate>
+          ))}
+          <EarthAligned>
+            <ObserverMarker />
+          </EarthAligned>
+        </>
+      )}
+
+      {/* === TRYB NORMALNY — pojedynczy satelita lub konstelacja === */}
+      {!visibilityActive && mode === 'constellation' && sats.map((sat, i) => (
         <group key={sat.prn}>
           <OrbitTrail
             eph={sat.eph}
@@ -111,7 +182,7 @@ function SceneContent() {
         </group>
       ))}
 
-      {mode === 'single' && (
+      {!visibilityActive && mode === 'single' && (
         <group>
           <OrbitTrail eph={singleEph} color="#1f6feb" harmonics={showHarmonics} useEcef={useEcef} />
           {showGroundTrack && (

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 type Panel = 'steps' | 'freq' | 'pos' | 'alm' | 'iono' | 'satellites' | null;
-export type LeftTab = 'orbital' | 'satellites' | 'kepler' | 'settings';
+export type LeftTab = 'orbital' | 'satellites' | 'kepler' | 'settings' | 'visibility';
 
 interface UiState {
   openPanel: Panel;

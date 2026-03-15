@@ -13,4 +13,10 @@ export const anim = {
   /** Live mode: timeSec śledzi zegar ścienny 1:1 */
   realtimeClock: false,
   realtimeOriginMs: 0,
+  /** Tryb widoczności z pozycji obserwatora */
+  visibilityMode: false,
+  obsLat: 52.2297,
+  obsLon: 21.0122,
+  obsAlt: 100,
+  obsMinElevation: 5,
 };

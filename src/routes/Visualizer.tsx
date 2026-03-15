@@ -5,6 +5,7 @@ import { OrbitalElements } from '../components/panels/OrbitalElements';
 import { SatelliteList } from '../components/panels/SatelliteList';
 import { SatelliteDetailPanel } from '../components/panels/SatelliteDetailPanel';
 import { KeplerStepper } from '../components/education/KeplerStepper';
+import { VisibilityPanel } from '../components/panels/VisibilityPanel';
 import { useUiStore } from '../store/uiStore';
 import type { LeftTab } from '../store/uiStore';
 
@@ -30,10 +31,11 @@ export function Visualizer() {
   } = useUiStore();
 
   const tabs: { id: LeftTab; label: string }[] = [
-    { id: 'orbital',    label: 'Orbita' },
-    { id: 'satellites', label: 'Satelity' },
-    { id: 'kepler',     label: 'Kepler' },
-    { id: 'settings',   label: 'Opcje' },
+    { id: 'orbital',     label: 'Orbita' },
+    { id: 'satellites',  label: 'Saty' },
+    { id: 'kepler',      label: 'Kepler' },
+    { id: 'settings',    label: 'Opcje' },
+    { id: 'visibility',  label: 'Niebo' },
   ];
 
   return (
@@ -109,6 +111,7 @@ export function Visualizer() {
         {activeTab === 'orbital' && <OrbitalElements />}
         {activeTab === 'satellites' && <SatelliteList />}
         {activeTab === 'kepler' && <KeplerStepper />}
+        {activeTab === 'visibility' && <VisibilityPanel />}
         {activeTab === 'settings' && (
           <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 font-mono space-y-3">
             <div className="text-[#8b949e] text-[9px] uppercase tracking-wider">Ustawienia wizualizacji</div>
