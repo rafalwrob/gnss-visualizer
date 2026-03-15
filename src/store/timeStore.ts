@@ -16,7 +16,7 @@ export const useTimeStore = create<TimeState>((set) => ({
   timeHours: 0,
   traceHours: 2,
   animating: false,
-  animSpeed: 1.0,
+  animSpeed: 300,
 
   setTimeHours: (t) => set({ timeHours: Math.max(0, t % 48) }),
   setTraceHours: (t) => set({ traceHours: t }),

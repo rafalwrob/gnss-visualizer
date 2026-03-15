@@ -53,7 +53,7 @@ function SceneController() {
     }
     // Symulacja: 4320× przy speed=1
     if (!anim.animating) return;
-    anim.timeSec = (anim.timeSec + delta * anim.animSpeed * 4320) % (48 * 3600);
+    anim.timeSec = (anim.timeSec + delta * anim.animSpeed) % (48 * 3600);
     frameCount.current++;
     if (frameCount.current % 16 === 0) {
       setTimeHours(anim.timeSec / 3600);
@@ -117,9 +117,10 @@ function ObserverMarker() {
 function SceneContent() {
   const { satellites, selectedIndex, mode, singleEph, selectSatellite } = useSatelliteStore();
   const { showHarmonics, showGroundTrack, useEcef, setActiveTab } = useUiStore();
-  const { enabled: obsEnabled, allSats } = useObserverStore();
+  const { enabled: obsEnabled, allSats, enabledSystems } = useObserverStore();
 
   const visibilityActive = obsEnabled && allSats.length > 0;
+  const filteredObsSats = allSats.filter(s => enabledSystems[s.system]);
   const sats = mode === 'constellation' ? satellites : [];
 
   return (
@@ -135,8 +136,14 @@ function SceneContent() {
       {/* === TRYB WIDOCZNOŚCI — wszystkie konstelacje, tylko nad horyzontem === */}
       {visibilityActive && (
         <>
-          {allSats.map((sat) => (
+          {filteredObsSats.map((sat) => (
             <SatVisibilityGate key={sat.prn} eph={sat.eph}>
+              <OrbitTrail eph={sat.eph} color={sat.color} harmonics={showHarmonics} useEcef={useEcef} />
+              {showGroundTrack && (
+                <EarthAligned>
+                  <GroundTrack eph={sat.eph} color={sat.color} harmonics={showHarmonics} />
+                </EarthAligned>
+              )}
               <SatelliteMarker
                 eph={sat.eph}
                 color={sat.color}

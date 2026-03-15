@@ -29,6 +29,7 @@ function fmt(v: number, dec: number) {
 export function VisibilityPanel() {
   const {
     enabled, lat, lon, alt, minElevation, allSats, systemStatus, fetchError,
+    enabledSystems, toggleSystem,
     setEnabled, setLat, setLon, setAlt, setMinElevation,
     setAllSats, setSystemStatus, setFetchError, reset,
   } = useObserverStore();
@@ -52,6 +53,7 @@ export function VisibilityPanel() {
         : anim.timeSec;
       const list: VisibleSat[] = [];
       for (const sat of allSats) {
+        if (!enabledSystems[sat.system]) continue;
         const { x, y, z } = computeGPSPosition(sat.eph, timeSec, true, false);
         const { el, az } = satElevAz(x, y, z, lat, lon, alt);
         if (el >= minElevation) {
@@ -65,7 +67,7 @@ export function VisibilityPanel() {
     computeList();
     intervalRef.current = setInterval(computeList, 2000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [enabled, allSats, lat, lon, alt, minElevation]);
+  }, [enabled, allSats, lat, lon, alt, minElevation, enabledSystems]);
 
   async function handleFetch() {
     const parsedLat = parseFloat(latInput);
@@ -240,6 +242,34 @@ export function VisibilityPanel() {
 
       {fetchError && (
         <div className="text-[#f85149] text-[9px]">✗ {fetchError}</div>
+      )}
+
+      {/* Filtr konstelacji — tylko gdy dane załadowane */}
+      {enabled && allSats.length > 0 && (
+        <div>
+          <div className="text-[#484f58] text-[9px] mb-1">Filtr konstelacji</div>
+          <div className="flex flex-wrap gap-1">
+            {SYSTEMS.map(sys => {
+              const info = GNSS_SYSTEMS[sys];
+              const active = enabledSystems[sys];
+              const total = allSats.filter(s => s.system === sys).length;
+              if (total === 0) return null;
+              return (
+                <button
+                  key={sys}
+                  onClick={() => toggleSystem(sys)}
+                  className="px-1.5 py-0.5 rounded text-[9px] font-bold border transition-all"
+                  style={active
+                    ? { backgroundColor: info.color + '33', borderColor: info.color, color: info.color }
+                    : { backgroundColor: 'transparent', borderColor: '#30363d', color: '#484f58' }
+                  }
+                >
+                  {SYS_SHORT[sys]} {total}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
 
       {/* Lista widocznych satelitów */}

@@ -8,6 +8,12 @@ export interface SystemFetchInfo {
   count: number;
 }
 
+const ALL_SYSTEMS: GnssSystem[] = ['gps', 'galileo', 'glonass', 'beidou', 'qzss', 'navic'];
+
+function allEnabled(): Record<GnssSystem, boolean> {
+  return Object.fromEntries(ALL_SYSTEMS.map(s => [s, true])) as Record<GnssSystem, boolean>;
+}
+
 interface ObserverState {
   /** Czy tryb widoczności jest aktywny */
   enabled: boolean;
@@ -17,6 +23,9 @@ interface ObserverState {
   alt: number;
   /** Minimalna elewacja do uznania satelity za widocznego [°] */
   minElevation: number;
+
+  /** Które konstelacje są widoczne (filtr wizualny) */
+  enabledSystems: Record<GnssSystem, boolean>;
 
   /** Wszystkie satelity ze wszystkich konstelacji (CelesTrak live) */
   allSats: SatelliteRecord[];
@@ -29,6 +38,7 @@ interface ObserverState {
   setLon: (v: number) => void;
   setAlt: (v: number) => void;
   setMinElevation: (v: number) => void;
+  toggleSystem: (sys: GnssSystem) => void;
   setAllSats: (sats: SatelliteRecord[]) => void;
   setSystemStatus: (sys: GnssSystem, info: SystemFetchInfo) => void;
   setFetchError: (e: string) => void;
@@ -42,6 +52,8 @@ export const useObserverStore = create<ObserverState>((set) => ({
   alt: 100,
   minElevation: 5,
 
+  enabledSystems: allEnabled(),
+
   allSats: [],
   systemStatus: {},
   fetchError: '',
@@ -51,9 +63,11 @@ export const useObserverStore = create<ObserverState>((set) => ({
   setLon: (v) => set({ lon: v }),
   setAlt: (v) => set({ alt: v }),
   setMinElevation: (v) => set({ minElevation: v }),
+  toggleSystem: (sys) =>
+    set((s) => ({ enabledSystems: { ...s.enabledSystems, [sys]: !s.enabledSystems[sys] } })),
   setAllSats: (sats) => set({ allSats: sats }),
   setSystemStatus: (sys, info) =>
     set((s) => ({ systemStatus: { ...s.systemStatus, [sys]: info } })),
   setFetchError: (e) => set({ fetchError: e }),
-  reset: () => set({ allSats: [], systemStatus: {}, fetchError: '' }),
+  reset: () => set({ allSats: [], systemStatus: {}, fetchError: '', enabledSystems: allEnabled() }),
 }));

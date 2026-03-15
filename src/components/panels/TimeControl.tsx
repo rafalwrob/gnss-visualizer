@@ -83,13 +83,21 @@ export function TimeControl() {
           </div>
           <div className="flex items-center justify-between mb-1">
             <span className="text-[#8b949e]">Prędkość</span>
-            <span className="text-[#7ee787]">{animSpeed.toFixed(1)}×</span>
+            <span className="text-[#7ee787]">
+              {animSpeed < 10 ? `${animSpeed.toFixed(1)}×`
+                : animSpeed < 1000 ? `${Math.round(animSpeed)}×`
+                : `${(animSpeed / 1000).toFixed(1)}k×`}
+            </span>
           </div>
           <input
-            type="range" min={0.1} max={20} step={0.1} value={animSpeed}
-            onChange={e => setAnimSpeed(parseFloat(e.target.value))}
-            className="w-full accent-green-500 mb-2"
+            type="range" min={0} max={4} step={0.02}
+            value={Math.log10(Math.max(1, animSpeed))}
+            onChange={e => setAnimSpeed(Math.round(Math.pow(10, parseFloat(e.target.value))))}
+            className="w-full accent-green-500 mb-1"
           />
+          <div className="flex justify-between text-[9px] text-[#484f58] mb-2">
+            <span>1×</span><span>10×</span><span>100×</span><span>1k×</span><span>10k×</span>
+          </div>
         </>
       )}
 

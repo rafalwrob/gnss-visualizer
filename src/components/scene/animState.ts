@@ -7,7 +7,7 @@ export const anim = {
   timeSec: 0,
   traceHours: 2,
   animating: false,
-  animSpeed: 1,
+  animSpeed: 300,
   showHarmonics: true,
   useEcef: false,
   /** Live mode: timeSec śledzi zegar ścienny 1:1 */
