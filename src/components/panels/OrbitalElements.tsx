@@ -4,7 +4,7 @@ import { useUiStore } from '../../store/uiStore';
 import { useTimeStore } from '../../store/timeStore';
 import { useObserverStore } from '../../store/observerStore';
 import { useIonoStore } from '../../store/ionoStore';
-import { computeGPSPosition } from '../../services/orbital/keplerMath';
+import { computeGPSPosition, orbitalPeriod } from '../../services/orbital/keplerMath';
 import { klobucherDelay } from '../../services/orbital/ionosphere';
 import type { KeplerianEphemeris } from '../../types/ephemeris';
 
@@ -49,6 +49,97 @@ function SmallToggle({ value, onChange }: { value: boolean; onChange: (v: boolea
   );
 }
 
+const PAD = { t: 8, r: 8, b: 20, l: 38 };
+const CHART_W = 220;
+const CHART_H = 80;
+const INNER_W = CHART_W - PAD.l - PAD.r;
+const INNER_H = CHART_H - PAD.t - PAD.b;
+
+function segColor(dr: number): string {
+  if (dr < 100) return '#3fb950';
+  if (dr < 500) return '#f0883e';
+  return '#f85149';
+}
+
+function AlmanachChart({ data, periodH }: { data: { tH: number; dr: number }[]; periodH: number }) {
+  const maxDr = Math.max(...data.map(p => p.dr));
+  const avgDr = data.reduce((s, p) => s + p.dr, 0) / data.length;
+  const yMax = maxDr < 1 ? 10 : Math.ceil(maxDr / 50) * 50;
+
+  function toXY(tH: number, dr: number): [number, number] {
+    return [
+      PAD.l + (tH / periodH) * INNER_W,
+      PAD.t + INNER_H - Math.min(dr / yMax, 1) * INNER_H,
+    ];
+  }
+
+  return (
+    <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+      <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-2">
+        ΔR: Efemerys vs Almanach
+      </div>
+      <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="w-full" style={{ height: CHART_H }}>
+        {/* tło */}
+        <rect width={CHART_W} height={CHART_H} fill="#0d1117" rx="4" />
+        {/* linia siatki y=100m, y=500m */}
+        {[100, 500].map(mark => {
+          if (mark > yMax) return null;
+          const y = PAD.t + INNER_H - (mark / yMax) * INNER_H;
+          return (
+            <g key={mark}>
+              <line x1={PAD.l} y1={y} x2={PAD.l + INNER_W} y2={y} stroke="#21262d" strokeWidth="0.5" strokeDasharray="3,3" />
+              <text x={PAD.l - 3} y={y + 3} textAnchor="end" fill="#484f58" fontSize="7" fontFamily="monospace">
+                {mark}
+              </text>
+            </g>
+          );
+        })}
+        {/* oś Y — max */}
+        <text x={PAD.l - 3} y={PAD.t + 4} textAnchor="end" fill="#484f58" fontSize="7" fontFamily="monospace">
+          {yMax}
+        </text>
+        {/* oś X — etykiety czasowe */}
+        {[0, Math.round(periodH / 2), Math.round(periodH)].map(h => {
+          const x = PAD.l + (h / periodH) * INNER_W;
+          return (
+            <text key={h} x={x} y={CHART_H - 4} textAnchor="middle" fill="#484f58" fontSize="7" fontFamily="monospace">
+              {h}h
+            </text>
+          );
+        })}
+        {/* segmenty wykresu kolorowane wg ΔR */}
+        {data.slice(0, -1).map((p, i) => {
+          const [x1, y1] = toXY(p.tH, p.dr);
+          const [x2, y2] = toXY(data[i + 1].tH, data[i + 1].dr);
+          return (
+            <line
+              key={i}
+              x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={segColor(p.dr)}
+              strokeWidth="1.5"
+              strokeLinecap="round"
+            />
+          );
+        })}
+        {/* linia bazowa y=0 */}
+        <line x1={PAD.l} y1={PAD.t + INNER_H} x2={PAD.l + INNER_W} y2={PAD.t + INNER_H} stroke="#21262d" strokeWidth="0.5" />
+      </svg>
+      {/* Statystyki */}
+      <div className="flex justify-between mt-1.5 text-[10px] font-mono">
+        <span>
+          <span className="text-[#484f58]">max </span>
+          <span style={{ color: segColor(maxDr) }} className="font-bold">{maxDr.toFixed(0)} m</span>
+        </span>
+        <span>
+          <span className="text-[#484f58]">avg </span>
+          <span style={{ color: segColor(avgDr) }} className="font-bold">{avgDr.toFixed(0)} m</span>
+        </span>
+        <span className="text-[#484f58]">T={periodH.toFixed(1)} h</span>
+      </div>
+    </div>
+  );
+}
+
 export function OrbitalElements() {
   const { singleEph, setSingleEph } = useSatelliteStore();
   const { showHarmonics, setShowHarmonics } = useUiStore();
@@ -61,6 +152,21 @@ export function OrbitalElements() {
   function update(key: keyof KeplerianEphemeris, raw: number) {
     setSingleEph({ ...singleEph, [key]: raw });
   }
+
+  // ΔR(t) — błąd almanach vs efemerys przez jeden okres orbitalny
+  const almanachError = useMemo(() => {
+    const T = orbitalPeriod(singleEph.a);
+    const steps = 48;
+    return Array.from({ length: steps + 1 }, (_, i) => {
+      const t = (i / steps) * T;
+      const posH = computeGPSPosition(singleEph, t, false, true);
+      const posN = computeGPSPosition(singleEph, t, false, false);
+      const dr = Math.sqrt(
+        (posH.x - posN.x) ** 2 + (posH.y - posN.y) ** 2 + (posH.z - posN.z) ** 2,
+      );
+      return { tH: t / 3600, dr };
+    });
+  }, [singleEph]);
 
   // ΔR — różnica pozycji z/bez korekcji harmonicznych
   const deltaM = useMemo(() => {
@@ -281,6 +387,9 @@ export function OrbitalElements() {
           </>
         )}
       </div>
+
+      {/* ── ΔR: efemerys vs almanach ── */}
+      <AlmanachChart data={almanachError} periodH={orbitalPeriod(singleEph.a) / 3600} />
 
       {/* ── Jonosfera Klobuchar ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">

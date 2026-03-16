@@ -34,12 +34,18 @@ function Toggle({
 }
 
 function SettingsPanel() {
-  const { showGroundTrack, setShowGroundTrack } = useUiStore();
+  const { showGroundTrack, setShowGroundTrack, showEciAxes, setShowEciAxes } = useUiStore();
   return (
     <div className="space-y-4 font-mono">
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
         <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Wizualizacja</div>
         <Toggle label="Ślad naziemny" value={showGroundTrack} onChange={setShowGroundTrack} />
+        <Toggle
+          label="Osie układu (ECI/ECEF)"
+          hint="Czerwona=X, Zielona=Z (N), Niebieska=-Y"
+          value={showEciAxes}
+          onChange={setShowEciAxes}
+        />
       </div>
     </div>
   );

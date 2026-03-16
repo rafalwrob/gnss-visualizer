@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
+import { OrbitControls, Stars, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Earth, SCENE_SCALE } from './Earth';
 import { IonoLayer } from './IonoLayer';
@@ -118,7 +118,7 @@ function ObserverMarker() {
 /** Zawartość sceny 3D */
 function SceneContent() {
   const { satellites, selectedIndex, mode, singleEph, selectSatellite } = useSatelliteStore();
-  const { showHarmonics, showGroundTrack, useEcef, setActiveTab } = useUiStore();
+  const { showHarmonics, showGroundTrack, useEcef, showEciAxes, setActiveTab } = useUiStore();
   const { enabled: obsEnabled, allSats, enabledSystems } = useObserverStore();
   const { enabled: ionoEnabled } = useIonoStore();
 
@@ -152,7 +152,18 @@ function SceneContent() {
                 eph={sat.eph}
                 color={sat.color}
                 selected={false}
-                onClick={() => {}}
+                onClick={() => {
+                  const store = useSatelliteStore.getState();
+                  const existingIdx = store.satellites.findIndex(s => s.prn === sat.prn);
+                  if (existingIdx >= 0) {
+                    store.selectSatellite(existingIdx);
+                  } else {
+                    const newSats = [...store.satellites, sat];
+                    store.setSatellites(newSats);
+                    store.selectSatellite(newSats.length - 1);
+                  }
+                  setActiveTab('satellites');
+                }}
               />
             </SatVisibilityGate>
           ))}
@@ -214,6 +225,22 @@ function SceneContent() {
             </EarthAligned>
           )}
           <SatelliteMarker eph={singleEph} color="#ffcc00" selected />
+        </group>
+      )}
+
+      {/* === OSIE UKŁADU ODNIESIENIA (ECI lub ECEF) === */}
+      {showEciAxes && (
+        <group>
+          <axesHelper args={[2.5]} />
+          <Html position={[2.6, 0, 0]} style={{ color: '#ff4444', fontSize: 11, fontFamily: 'monospace', pointerEvents: 'none' }}>
+            {useEcef ? 'X (ECEF)' : 'X (ECI)'}
+          </Html>
+          <Html position={[0, 2.6, 0]} style={{ color: '#44ff44', fontSize: 11, fontFamily: 'monospace', pointerEvents: 'none' }}>
+            Z (N)
+          </Html>
+          <Html position={[0, 0, 2.6]} style={{ color: '#4488ff', fontSize: 11, fontFamily: 'monospace', pointerEvents: 'none' }}>
+            {useEcef ? '-Y (ECEF)' : '-Y (ECI)'}
+          </Html>
         </group>
       )}
 
