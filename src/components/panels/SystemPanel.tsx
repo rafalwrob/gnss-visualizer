@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSatelliteStore } from '../../store/satelliteStore';
 import { useUiStore } from '../../store/uiStore';
 import { useTimeStore } from '../../store/timeStore';
+import { useObserverStore } from '../../store/observerStore';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 import type { GnssSystem } from '../../types/satellite';
 import { fetchConstellation, getCacheAge, clearCache, isOnlineSupported } from '../../services/api/celestrak';
@@ -30,8 +31,9 @@ function formatAge(ms: number): string {
 
 export function SystemPanel() {
   const { mode, activeSystem, setMode, setActiveSystem, loadExample, setSatellites } = useSatelliteStore();
-  const { onlineMode, setOnlineMode } = useUiStore();
+  const { onlineMode, setOnlineMode, setActiveTab } = useUiStore();
   const { setAnimating } = useTimeStore();
+  const { enabled: obsEnabled, setEnabled: setObsEnabled } = useObserverStore();
   const [fetchState, setFetchState] = useState<FetchState>('idle');
   const [fetchError, setFetchError] = useState('');
   const [cacheAge, setCacheAge] = useState<number | null>(null);
@@ -59,21 +61,33 @@ export function SystemPanel() {
     doFetch(activeSystem);
   }, [onlineMode, activeSystem]);
 
-  function handleOnlineToggle() {
+  function handleOfflineClick() {
     if (onlineMode) {
       anim.realtimeClock = false;
       setOnlineMode(false);
       setAnimating(false);
       setFetchState('idle');
-    } else {
+    }
+  }
+
+  function handleOnlineClick() {
+    if (!onlineMode) {
       setOnlineMode(true);
     }
+  }
+
+  function handleVisibilityClick() {
+    setObsEnabled(true);
+    setActiveTab('visibility');
   }
 
   function handleRefresh() {
     clearCache(activeSystem);
     doFetch(activeSystem);
   }
+
+  // Aktywny tryb danych
+  const dataMode = obsEnabled ? 'visibility' : onlineMode ? 'online' : 'offline';
 
   return (
     <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 font-mono">
@@ -104,8 +118,8 @@ export function SystemPanel() {
         })}
       </div>
 
-      {/* Tryb */}
-      <div className="flex gap-1.5 mb-3">
+      {/* Wiersz 1: Pojedynczy / Konstelacja */}
+      <div className="flex gap-1.5 mb-2">
         {(['single', 'constellation'] as const).map(m => (
           <button
             key={m}
@@ -121,51 +135,73 @@ export function SystemPanel() {
         ))}
       </div>
 
-      {/* Online / Offline */}
-      <div className="border border-[#30363d] rounded p-2.5">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-[#8b949e] text-[11px]">Dane na żywo</span>
-          <button
-            onClick={handleOnlineToggle}
-            className={`px-2.5 py-1 rounded text-[11px] font-bold border transition-all ${
-              onlineMode
-                ? 'bg-[#238636] border-[#238636] text-white'
-                : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#3fb950]'
-            }`}
-          >
-            {onlineMode ? '● ONLINE' : '○ OFFLINE'}
-          </button>
-        </div>
-
-        {onlineMode && !isOnlineSupported(activeSystem) && (
-          <div className="text-[#8b949e] text-[11px]">
-            {GNSS_SYSTEMS[activeSystem].name} niedostępny online
-          </div>
-        )}
-        {onlineMode && isOnlineSupported(activeSystem) && fetchState === 'loading' && (
-          <div className="text-[#58a6ff] text-[11px] animate-pulse">
-            Pobieranie {GNSS_SYSTEMS[activeSystem].name}…
-          </div>
-        )}
-        {onlineMode && isOnlineSupported(activeSystem) && fetchState === 'ok' && (
-          <div className="flex items-center justify-between">
-            <span className="text-[#3fb950] text-[11px]">
-              ✓ {cacheAge !== null ? formatAge(cacheAge) : 'załadowano'}
-            </span>
-            <button onClick={handleRefresh} className="text-[#58a6ff] text-[11px] hover:text-[#79c0ff]">
-              Odśwież
-            </button>
-          </div>
-        )}
-        {fetchState === 'error' && (
-          <div className="text-[#f85149] text-[11px] leading-tight">✗ {fetchError}</div>
-        )}
+      {/* Wiersz 2: Offline / Online / Widoczność */}
+      <div className="flex gap-1.5 mb-2">
+        <button
+          onClick={handleOfflineClick}
+          className={`flex-1 py-1.5 rounded text-[11px] border transition-all ${
+            dataMode === 'offline'
+              ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
+              : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]'
+          }`}
+        >
+          Offline
+        </button>
+        <button
+          onClick={handleOnlineClick}
+          className={`flex-1 py-1.5 rounded text-[11px] border transition-all ${
+            dataMode === 'online'
+              ? 'bg-[#238636] border-[#238636] text-white'
+              : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#3fb950]'
+          }`}
+        >
+          Online
+        </button>
+        <button
+          onClick={handleVisibilityClick}
+          className={`flex-1 py-1.5 rounded text-[11px] border transition-all ${
+            dataMode === 'visibility'
+              ? 'bg-[#6e40c9] border-[#6e40c9] text-white'
+              : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#a371f7]'
+          }`}
+        >
+          Widoczność
+        </button>
       </div>
 
-      {!onlineMode && (
+      {/* Status pobierania (Online) */}
+      {onlineMode && (
+        <div className="mt-1">
+          {!isOnlineSupported(activeSystem) && (
+            <div className="text-[#8b949e] text-[11px]">
+              {GNSS_SYSTEMS[activeSystem].name} niedostępny online
+            </div>
+          )}
+          {isOnlineSupported(activeSystem) && fetchState === 'loading' && (
+            <div className="text-[#58a6ff] text-[11px] animate-pulse">
+              Pobieranie {GNSS_SYSTEMS[activeSystem].name}…
+            </div>
+          )}
+          {isOnlineSupported(activeSystem) && fetchState === 'ok' && (
+            <div className="flex items-center justify-between">
+              <span className="text-[#3fb950] text-[11px]">
+                ✓ {cacheAge !== null ? formatAge(cacheAge) : 'załadowano'}
+              </span>
+              <button onClick={handleRefresh} className="text-[#58a6ff] text-[11px] hover:text-[#79c0ff]">
+                Odśwież
+              </button>
+            </div>
+          )}
+          {fetchState === 'error' && (
+            <div className="text-[#f85149] text-[11px] leading-tight">✗ {fetchError}</div>
+          )}
+        </div>
+      )}
+
+      {dataMode === 'offline' && (
         <button
           onClick={loadExample}
-          className="w-full mt-2.5 py-2 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[11px] transition-colors"
+          className="w-full mt-2 py-2 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[11px] transition-colors"
         >
           Załaduj przykład
         </button>

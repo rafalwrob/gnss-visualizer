@@ -10,7 +10,7 @@ import { ReceiverPanel } from '../components/panels/ReceiverPanel';
 import { useUiStore } from '../store/uiStore';
 import type { LeftTab } from '../store/uiStore';
 
-// ── Ustawienia (inline, bez osobnego komponentu żeby nie importować za dużo) ──
+// ── Ustawienia (uproszczone — ECI/ECEF przeniesione do sidebara) ──
 
 function Toggle({
   label, hint, value, onChange,
@@ -32,40 +32,12 @@ function Toggle({
 }
 
 function SettingsPanel() {
-  const { showHarmonics, useEcef, showGroundTrack, setShowHarmonics, setUseEcef, setShowGroundTrack } = useUiStore();
+  const { showGroundTrack, setShowGroundTrack } = useUiStore();
   return (
     <div className="space-y-4 font-mono">
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Układ współrzędnych</div>
-        <div className="flex gap-2 mb-3">
-          {(['ECI', 'ECEF'] as const).map(sys => {
-            const active = sys === 'ECEF' ? useEcef : !useEcef;
-            return (
-              <button key={sys} onClick={() => setUseEcef(sys === 'ECEF')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
-                  active ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
-                         : 'border-[#30363d] text-[#6e7681] hover:border-[#58a6ff] hover:text-[#58a6ff]'
-                }`}
-              >
-                {sys}
-              </button>
-            );
-          })}
-        </div>
-        <div className="text-xs text-[#484f58]">
-          {useEcef ? 'ECEF — ślad w ukł. stałym z Ziemią (roseta)' : 'ECI — inercjalny, czyste elipsy orbit'}
-        </div>
-      </div>
-
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
         <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Wizualizacja</div>
         <Toggle label="Ślad naziemny" value={showGroundTrack} onChange={setShowGroundTrack} />
-        <Toggle
-          label="Perturbacje harmoniczne (J₂)"
-          hint="Poprawki Crc, Crs, Cuc, Cus, Cic, Cis + dn, IDOT. Różnica ~5–200 m vs orbita Keplera."
-          value={showHarmonics}
-          onChange={setShowHarmonics}
-        />
       </div>
     </div>
   );
@@ -74,18 +46,18 @@ function SettingsPanel() {
 // ── Konfiguracja zakładek ──────────────────────────────────────────────────────
 
 const TABS: { id: LeftTab; label: string; title: string }[] = [
-  { id: 'orbital',    label: 'Elementy',    title: 'Parametry orbity' },
+  { id: 'orbital',    label: 'Parametry',   title: 'Parametry orbity' },
   { id: 'satellites', label: 'Satelity',    title: 'Lista satelitów' },
   { id: 'kepler',     label: 'Kalkulator',  title: 'Kalkulator Keplera' },
   { id: 'visibility', label: 'Widoczność',  title: 'Widoczność satelitów' },
   { id: 'receiver',   label: 'Odbiornik',   title: 'Odbiornik GNSS' },
-  { id: 'settings',   label: 'Scena',       title: 'Ustawienia sceny' },
+  { id: 'settings',   label: 'Ustawienia',  title: 'Ustawienia sceny' },
 ];
 
 // ── Główny komponent ──────────────────────────────────────────────────────────
 
 export function Visualizer() {
-  const { onlineMode, activeTab, setActiveTab } = useUiStore();
+  const { onlineMode, activeTab, setActiveTab, useEcef, setUseEcef } = useUiStore();
 
   function toggleTab(id: LeftTab) {
     setActiveTab(activeTab === id ? null : id);
@@ -111,6 +83,31 @@ export function Visualizer() {
             )}
           </div>
           <div className="text-[#6e7681] text-[11px] font-mono mt-0.5">3D Satellite Navigator</div>
+        </div>
+
+        {/* ECI / ECEF — zawsze widoczne */}
+        <div className="flex-shrink-0 px-3 py-2 border-b border-[#21262d]">
+          <div className="flex gap-1.5">
+            {(['ECI', 'ECEF'] as const).map(sys => {
+              const active = sys === 'ECEF' ? useEcef : !useEcef;
+              return (
+                <button
+                  key={sys}
+                  onClick={() => setUseEcef(sys === 'ECEF')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                    active
+                      ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
+                      : 'border-[#30363d] text-[#6e7681] hover:border-[#58a6ff] hover:text-[#58a6ff]'
+                  }`}
+                >
+                  {sys}
+                </button>
+              );
+            })}
+          </div>
+          <div className="text-[10px] text-[#484f58] font-mono mt-1 text-center">
+            {useEcef ? 'ECEF — stały z Ziemią' : 'ECI — inercjalny, czyste elipsy'}
+          </div>
         </div>
 
         {/* Zawsze widoczne kontrolki */}

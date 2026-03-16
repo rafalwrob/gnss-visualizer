@@ -161,6 +161,15 @@ function SceneContent() {
       {/* === TRYB NORMALNY — pojedynczy satelita lub konstelacja === */}
       {!visibilityActive && mode === 'constellation' && sats.map((sat, i) => (
         <group key={sat.prn}>
+          {showHarmonics && (
+            <OrbitTrail
+              eph={sat.eph}
+              color="#484f58"
+              harmonics={false}
+              useEcef={useEcef}
+              ghost
+            />
+          )}
           <OrbitTrail
             eph={sat.eph}
             color={sat.color}
@@ -191,6 +200,9 @@ function SceneContent() {
 
       {!visibilityActive && mode === 'single' && (
         <group>
+          {showHarmonics && (
+            <OrbitTrail eph={singleEph} color="#484f58" harmonics={false} useEcef={useEcef} ghost />
+          )}
           <OrbitTrail eph={singleEph} color="#1f6feb" harmonics={showHarmonics} useEcef={useEcef} />
           {showGroundTrack && (
             <EarthAligned>

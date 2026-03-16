@@ -15,6 +15,8 @@ interface OrbitTrailProps {
   useEcef: boolean;
   selected?: boolean;
   dimmed?: boolean;
+  /** Ghost trail — zawsze bez korekcji harmonicznych, niski opacity, szary */
+  ghost?: boolean;
 }
 
 /**
@@ -23,8 +25,9 @@ interface OrbitTrailProps {
  * ECI: łuk na elipsie orbitalnej (koniec łuku = aktualna pozycja → ruch widoczny).
  * ECEF: roseta śladów naziemnych.
  * Aktualizacja geometrii co 8 klatek (~7.5 Hz przy 60fps).
+ * Ghost=true: czyste elipsy Keplera (bez harmonik), opacity=0.25 — pokazuje przesunięcie.
  */
-export function OrbitTrail({ eph, color, harmonics, selected = false, dimmed = false }: OrbitTrailProps) {
+export function OrbitTrail({ eph, color, harmonics, selected = false, dimmed = false, ghost = false }: OrbitTrailProps) {
   // start=7 → pierwsza klatka useFrame od razu wykonuje aktualizację (8%8=0)
   const frame = useRef(7);
 
@@ -55,7 +58,7 @@ export function OrbitTrail({ eph, color, harmonics, selected = false, dimmed = f
       : anim.timeSec;
     for (let k = 0; k <= SEGS; k++) {
       const t = t0 - traceSec + (k / SEGS) * traceSec;
-      const pos = computeGPSPosition(eph, t, anim.useEcef, harmonics);
+      const pos = computeGPSPosition(eph, t, anim.useEcef, ghost ? false : harmonics);
       posArr[k * 3]     = pos.x * SCENE_SCALE;
       posArr[k * 3 + 1] = pos.z * SCENE_SCALE;
       posArr[k * 3 + 2] = -pos.y * SCENE_SCALE;
@@ -63,13 +66,13 @@ export function OrbitTrail({ eph, color, harmonics, selected = false, dimmed = f
     if (lineObj.geometry.attributes.position) {
       lineObj.geometry.attributes.position.needsUpdate = true;
     }
-  }, [eph, harmonics]); // celowo pomijamy stable refs
+  }, [eph, harmonics, ghost]); // celowo pomijamy stable refs
 
   // Aktualizacja co 8 klatek — ECI i ECEF obsługiwane jednakowo
   useFrame(() => {
-    // Opacity/waga linii na podstawie zaznaczenia — imperatywna, zero re-renderów
+    // Opacity: ghost zawsze 0.25, inaczej na podstawie zaznaczenia
     const mat = lineObj.material as THREE.LineBasicMaterial;
-    const opacity = selected ? 1.0 : dimmed ? 0.18 : 0.6;
+    const opacity = ghost ? 0.25 : (selected ? 1.0 : dimmed ? 0.18 : 0.6);
     if (mat.opacity !== opacity) mat.opacity = opacity;
 
     frame.current++;
@@ -83,7 +86,7 @@ export function OrbitTrail({ eph, color, harmonics, selected = false, dimmed = f
 
     for (let k = 0; k <= SEGS; k++) {
       const t = timeSec - traceSec + (k / SEGS) * traceSec;
-      const pos = computeGPSPosition(eph, t, anim.useEcef, anim.showHarmonics);
+      const pos = computeGPSPosition(eph, t, anim.useEcef, ghost ? false : anim.showHarmonics);
       posArr[k * 3]     = pos.x * SCENE_SCALE;
       posArr[k * 3 + 1] = pos.z * SCENE_SCALE;
       posArr[k * 3 + 2] = -pos.y * SCENE_SCALE;
