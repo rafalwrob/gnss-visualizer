@@ -66,6 +66,7 @@ export function buildIonoGrid(
   nLat: number,
   nLon: number,
   params: KlobucharParams = DEFAULT_KLOBUCHAR,
+  gpsSec = 0,
 ): { grid: Float32Array; minV: number; maxV: number } {
   const grid = new Float32Array(nLat * nLon);
   let minV = Infinity;
@@ -75,7 +76,7 @@ export function buildIonoGrid(
     const latM = -90 + (li + 0.5) * (180 / nLat);
     for (let lo = 0; lo < nLon; lo++) {
       const lonM = -180 + (lo + 0.5) * (360 / nLon);
-      const localSec = (((lonM / 360) * 86400) + 86400) % 86400;
+      const localSec = (((lonM / 360) * 86400) + gpsSec + 86400) % 86400;
       const delay = klobucherDelay(90, latM, lonM, 0, localSec, params);
       grid[li * nLon + lo] = delay;
       if (delay < minV) minV = delay;

@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import { Earth, SCENE_SCALE } from './Earth';
+import { IonoLayer } from './IonoLayer';
 import { SatelliteMarker } from './SatelliteMarker';
 import { OrbitTrail } from './OrbitTrail';
 import { GroundTrack } from './GroundTrack';
@@ -11,6 +12,7 @@ import { useSatelliteStore } from '../../store/satelliteStore';
 import { useTimeStore } from '../../store/timeStore';
 import { useUiStore } from '../../store/uiStore';
 import { useObserverStore } from '../../store/observerStore';
+import { useIonoStore } from '../../store/ionoStore';
 import { OMEGA_E } from '../../constants/gnss';
 import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import { satElevAz, latLonAltToEcef } from '../../services/coordinates/ecefEnu';
@@ -118,6 +120,7 @@ function SceneContent() {
   const { satellites, selectedIndex, mode, singleEph, selectSatellite } = useSatelliteStore();
   const { showHarmonics, showGroundTrack, useEcef, setActiveTab } = useUiStore();
   const { enabled: obsEnabled, allSats, enabledSystems } = useObserverStore();
+  const { enabled: ionoEnabled } = useIonoStore();
 
   const visibilityActive = obsEnabled && allSats.length > 0;
   const filteredObsSats = allSats.filter(s => enabledSystems[s.system]);
@@ -132,6 +135,7 @@ function SceneContent() {
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
 
       <Earth />
+      {ionoEnabled && <IonoLayer />}
 
       {/* === TRYB WIDOCZNOŚCI — wszystkie konstelacje, tylko nad horyzontem === */}
       {visibilityActive && (

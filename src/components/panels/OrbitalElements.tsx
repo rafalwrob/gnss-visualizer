@@ -187,6 +187,99 @@ export function OrbitalElements() {
           onChange={v => update('M0', v * DEG)}
           color="#ff7b72"
         />
+
+        {showHarmonics && (
+          <>
+            <div className="border-t border-[#21262d] my-3" />
+            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Dryft orbitalny</div>
+            <SliderRow
+              label="Dryft RAAN  dΩ/dt"
+              value={singleEph.OmegaDot * 1e9}
+              displayValue={`${(singleEph.OmegaDot * 1e9).toFixed(2)} nrad/s`}
+              min={-20} max={0} step={0.01}
+              onChange={v => update('OmegaDot', v * 1e-9)}
+              color="#c9d1d9"
+            />
+            <SliderRow
+              label="Korekcja n  dn"
+              value={singleEph.dn * 1e9}
+              displayValue={`${(singleEph.dn * 1e9).toFixed(2)} nrad/s`}
+              min={-20} max={20} step={0.01}
+              onChange={v => update('dn', v * 1e-9)}
+              color="#c9d1d9"
+            />
+            <SliderRow
+              label="Dryft inkl.  IDOT"
+              value={singleEph.IDOT * 1e12}
+              displayValue={`${(singleEph.IDOT * 1e12).toFixed(1)} prad/s`}
+              min={-500} max={500} step={0.1}
+              onChange={v => update('IDOT', v * 1e-12)}
+              color="#c9d1d9"
+            />
+
+            <div className="border-t border-[#21262d] my-3" />
+            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Perturbacje sferyczne</div>
+            <SliderRow
+              label="Crc (promień cos)"
+              value={singleEph.Crc}
+              displayValue={`${singleEph.Crc.toFixed(1)} m`}
+              min={-200} max={200} step={0.1}
+              onChange={v => update('Crc', v)}
+              color="#7ee787"
+            />
+            <SliderRow
+              label="Crs (promień sin)"
+              value={singleEph.Crs}
+              displayValue={`${singleEph.Crs.toFixed(1)} m`}
+              min={-200} max={200} step={0.1}
+              onChange={v => update('Crs', v)}
+              color="#7ee787"
+            />
+            <SliderRow
+              label="Cuc (arg. szer. cos)"
+              value={singleEph.Cuc * 1e6}
+              displayValue={`${(singleEph.Cuc * 1e6).toFixed(3)} μrad`}
+              min={-10} max={10} step={0.001}
+              onChange={v => update('Cuc', v * 1e-6)}
+              color="#f0883e"
+            />
+            <SliderRow
+              label="Cus (arg. szer. sin)"
+              value={singleEph.Cus * 1e6}
+              displayValue={`${(singleEph.Cus * 1e6).toFixed(3)} μrad`}
+              min={-10} max={10} step={0.001}
+              onChange={v => update('Cus', v * 1e-6)}
+              color="#f0883e"
+            />
+            <SliderRow
+              label="Cic (inkl. cos)"
+              value={singleEph.Cic * 1e6}
+              displayValue={`${(singleEph.Cic * 1e6).toFixed(3)} μrad`}
+              min={-1} max={1} step={0.0001}
+              onChange={v => update('Cic', v * 1e-6)}
+              color="#a371f7"
+            />
+            <SliderRow
+              label="Cis (inkl. sin)"
+              value={singleEph.Cis * 1e6}
+              displayValue={`${(singleEph.Cis * 1e6).toFixed(3)} μrad`}
+              min={-1} max={1} step={0.0001}
+              onChange={v => update('Cis', v * 1e-6)}
+              color="#a371f7"
+            />
+
+            <div className="border-t border-[#21262d] my-3" />
+            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Epoka</div>
+            <SliderRow
+              label="t₀e (epoka efemerydy)"
+              value={singleEph.toe / 3600}
+              displayValue={`${(singleEph.toe / 3600).toFixed(1)} h`}
+              min={0} max={168} step={0.5}
+              onChange={v => update('toe', v * 3600)}
+              color="#484f58"
+            />
+          </>
+        )}
       </div>
 
       {/* ── Jonosfera Klobuchar ── */}

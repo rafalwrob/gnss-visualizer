@@ -9,6 +9,7 @@ import { VisibilityPanel } from '../components/panels/VisibilityPanel';
 import { ReceiverPanel } from '../components/panels/ReceiverPanel';
 import { useUiStore } from '../store/uiStore';
 import type { LeftTab } from '../store/uiStore';
+import { useObserverStore } from '../store/observerStore';
 
 // ── Ustawienia (uproszczone — ECI/ECEF przeniesione do sidebara) ──
 
@@ -58,12 +59,17 @@ const TABS: { id: LeftTab; label: string; title: string }[] = [
 
 export function Visualizer() {
   const { onlineMode, activeTab, setActiveTab, useEcef, setUseEcef } = useUiStore();
+  const { enabled: obsEnabled, setEnabled: setObsEnabled } = useObserverStore();
 
   function toggleTab(id: LeftTab) {
+    if (id === 'visibility') {
+      setObsEnabled(!obsEnabled);
+      return;
+    }
     setActiveTab(activeTab === id ? null : id);
   }
 
-  const currentTab = TABS.find(t => t.id === activeTab);
+  const currentTab = activeTab && activeTab !== 'visibility' ? TABS.find(t => t.id === activeTab) : null;
 
   return (
     <div className="flex h-screen bg-[#0a0e17] text-[#e6edf3] overflow-hidden">
@@ -110,10 +116,14 @@ export function Visualizer() {
           </div>
         </div>
 
-        {/* Zawsze widoczne kontrolki */}
-        <div className="flex-shrink-0 overflow-y-auto px-3 py-3 space-y-3 border-b border-[#21262d]">
+        {/* SystemPanel — zawsze widoczny */}
+        <div className="flex-shrink-0 px-3 pt-3 pb-0">
           <SystemPanel />
-          <TimeControl />
+        </div>
+
+        {/* Kontrolki zależne od trybu — przewijalne */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 border-b border-[#21262d]">
+          {obsEnabled ? <VisibilityPanel /> : <TimeControl />}
         </div>
 
         {/* Siatka nawigacyjna 2×3 */}
@@ -125,9 +135,13 @@ export function Visualizer() {
                 key={t.id}
                 onClick={() => toggleTab(t.id)}
                 className={`py-3 rounded-lg text-[13px] font-mono font-medium border transition-all ${
-                  activeTab === t.id
-                    ? 'bg-[#1f6feb]/20 border-[#1f6feb] text-[#58a6ff]'
-                    : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/50 hover:text-[#c9d1d9]'
+                  t.id === 'visibility'
+                    ? (obsEnabled
+                        ? 'bg-[#6e40c9]/20 border-[#6e40c9] text-[#a371f7]'
+                        : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:border-[#a371f7]/50 hover:text-[#c9d1d9]')
+                    : (activeTab === t.id
+                        ? 'bg-[#1f6feb]/20 border-[#1f6feb] text-[#58a6ff]'
+                        : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/50 hover:text-[#c9d1d9]')
                 }`}
               >
                 {t.label}
@@ -148,7 +162,7 @@ export function Visualizer() {
       </div>
 
       {/* ═══ PRAWA SZUFLADA — zawartość zakładki ═══ */}
-      {activeTab && currentTab && (
+      {activeTab && activeTab !== 'visibility' && currentTab && (
         <div className="w-[400px] flex-shrink-0 flex flex-col border-l border-[#21262d] bg-[#0d1117]">
 
           {/* Nagłówek panelu */}

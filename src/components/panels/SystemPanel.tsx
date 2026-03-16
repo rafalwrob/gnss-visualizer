@@ -31,7 +31,7 @@ function formatAge(ms: number): string {
 
 export function SystemPanel() {
   const { mode, activeSystem, setMode, setActiveSystem, loadExample, setSatellites } = useSatelliteStore();
-  const { onlineMode, setOnlineMode, setActiveTab } = useUiStore();
+  const { onlineMode, setOnlineMode } = useUiStore();
   const { setAnimating } = useTimeStore();
   const { enabled: obsEnabled, setEnabled: setObsEnabled } = useObserverStore();
   const [fetchState, setFetchState] = useState<FetchState>('idle');
@@ -62,6 +62,7 @@ export function SystemPanel() {
   }, [onlineMode, activeSystem]);
 
   function handleOfflineClick() {
+    if (obsEnabled) setObsEnabled(false);
     if (onlineMode) {
       anim.realtimeClock = false;
       setOnlineMode(false);
@@ -71,14 +72,22 @@ export function SystemPanel() {
   }
 
   function handleOnlineClick() {
-    if (!onlineMode) {
-      setOnlineMode(true);
-    }
+    if (obsEnabled) setObsEnabled(false);
+    if (!onlineMode) setOnlineMode(true);
   }
 
   function handleVisibilityClick() {
-    setObsEnabled(true);
-    setActiveTab('visibility');
+    if (obsEnabled) {
+      setObsEnabled(false);
+    } else {
+      if (onlineMode) {
+        anim.realtimeClock = false;
+        setOnlineMode(false);
+        setAnimating(false);
+        setFetchState('idle');
+      }
+      setObsEnabled(true);
+    }
   }
 
   function handleRefresh() {
