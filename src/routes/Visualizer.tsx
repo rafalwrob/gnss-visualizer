@@ -7,6 +7,7 @@ import { SatelliteDetailPanel } from '../components/panels/SatelliteDetailPanel'
 import { KeplerStepper } from '../components/education/KeplerStepper';
 import { VisibilityPanel } from '../components/panels/VisibilityPanel';
 import { ReceiverPanel } from '../components/panels/ReceiverPanel';
+import { FrequencyPanel } from '../components/panels/FrequencyPanel';
 import { useUiStore } from '../store/uiStore';
 import type { LeftTab } from '../store/uiStore';
 import { useObserverStore } from '../store/observerStore';
@@ -52,6 +53,7 @@ const TABS: { id: LeftTab; label: string; title: string }[] = [
   { id: 'kepler',     label: 'Kalkulator',  title: 'Kalkulator Keplera' },
   { id: 'visibility', label: 'Widoczność',  title: 'Widoczność satelitów' },
   { id: 'receiver',   label: 'Odbiornik',   title: 'Odbiornik GNSS' },
+  { id: 'signals',    label: 'Sygnały',     title: 'Pasma sygnałów GNSS' },
   { id: 'settings',   label: 'Ustawienia',  title: 'Ustawienia sceny' },
 ];
 
@@ -183,8 +185,8 @@ export function Visualizer() {
             {activeTab === 'orbital'    && <OrbitalElements />}
             {activeTab === 'satellites' && <SatelliteList />}
             {activeTab === 'kepler'     && <KeplerStepper />}
-            {activeTab === 'visibility' && <VisibilityPanel />}
             {activeTab === 'receiver'   && <ReceiverPanel />}
+            {activeTab === 'signals'    && <FrequencyPanel />}
             {activeTab === 'settings'   && <SettingsPanel />}
           </div>
 

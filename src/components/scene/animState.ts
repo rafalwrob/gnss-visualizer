@@ -19,4 +19,6 @@ export const anim = {
   obsLon: 21.0122,
   obsAlt: 100,
   obsMinElevation: 5,
+  /** Unix ms odpowiadający timeSec=0 — do obliczania pozycji Słońca (terminator) */
+  simulationOriginMs: Date.now(),
 };

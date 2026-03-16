@@ -4,6 +4,7 @@ import { fetchConstellation } from '../../services/api/celestrak';
 import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import { satElevAz } from '../../services/coordinates/ecefEnu';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
+import { SkyPlot } from './SkyPlot';
 import { anim } from '../scene/animState';
 import type { GnssSystem } from '../../types/satellite';
 
@@ -307,6 +308,19 @@ export function VisibilityPanel() {
             {lat.toFixed(4)}°N · {lon.toFixed(4)}°E · {alt.toFixed(0)} m n.p.m.
           </div>
         </div>
+      )}
+
+      {/* Sky Plot — pokazywany gdy są widoczne satelity */}
+      {enabled && visibleList.length > 0 && (
+        <SkyPlot
+          observations={visibleList.map(s => ({
+            prn: s.prn,
+            system: s.system,
+            azimuth: s.az,
+            elevation: s.el,
+          }))}
+          size={252}
+        />
       )}
     </div>
   );
