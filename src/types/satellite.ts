@@ -8,6 +8,12 @@ export interface SatelliteRecord {
   plane: number;
   color: string;
   eph: KeplerianEphemeris;
+  /** TLE lines z CelesTrak GP JSON — używane przez propagator SGP4 */
+  tleLine1?: string;
+  tleLine2?: string;
+  /** Sparsowany obiekt satellite.js SatRec (twoline2satrec) */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  satrec?: any;
 }
 
 export interface SatDbEntry {

@@ -1,16 +1,48 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSatelliteStore } from '../../store/satelliteStore';
+import { useObserverStore } from '../../store/observerStore';
 import { SAT_DB } from '../../constants/satDatabase';
+import { computeGPSPosition } from '../../services/orbital/keplerMath';
+import { satElevAz, latLonAltToEcef } from '../../services/coordinates/ecefEnu';
+import { anim } from '../scene/animState';
+import { R_E } from '../../constants/gnss';
 
 const R2D = 180 / Math.PI;
+
+interface LiveData { el: number; az: number; altKm: number; rangeKm: number; }
 
 export function SatelliteDetailPanel() {
   const { satellites, selectedIndex, mode, selectSatellite } = useSatelliteStore();
   const [collapsed, setCollapsed] = useState(false);
+  const { enabled: obsEnabled, lat: obsLat, lon: obsLon, alt: obsAlt } = useObserverStore();
+  const [liveDat, setLiveDat] = useState<LiveData | null>(null);
 
-  if (mode !== 'constellation' || selectedIndex < 0 || !satellites[selectedIndex]) return null;
+  const sat = mode === 'constellation' && selectedIndex >= 0 ? satellites[selectedIndex] : undefined;
 
-  const sat = satellites[selectedIndex];
+  useEffect(() => {
+    if (!sat || !obsEnabled) { setLiveDat(null); return; }
+
+    function compute() {
+      if (!sat) return;
+      const timeSec = anim.realtimeClock
+        ? (Date.now() - anim.realtimeOriginMs) / 1000
+        : anim.timeSec;
+      const { x, y, z } = computeGPSPosition(sat.eph, timeSec, true, false);
+      const { el, az } = satElevAz(x, y, z, obsLat, obsLon, obsAlt);
+      const r = Math.sqrt(x * x + y * y + z * z);
+      const altKm = (r - R_E) / 1000;
+      const obs = latLonAltToEcef(obsLat, obsLon, obsAlt);
+      const dx = x - obs.x, dy = y - obs.y, dz = z - obs.z;
+      const rangeKm = Math.sqrt(dx * dx + dy * dy + dz * dz) / 1000;
+      setLiveDat({ el, az, altKm, rangeKm });
+    }
+
+    compute();
+    const id = setInterval(compute, 500);
+    return () => clearInterval(id);
+  }, [sat, obsEnabled, obsLat, obsLon, obsAlt]);
+
+  if (!sat) return null;
   const db = SAT_DB[sat.prn];
   const e = sat.eph;
   const periodH = (2 * Math.PI * Math.sqrt(e.a ** 3 / 3.986005e14)) / 3600;
@@ -134,6 +166,41 @@ export function SatelliteDetailPanel() {
                 <span className="text-[#e6edf3]">{db.freqs.join(', ')}</span>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Sekcja Live — widoczna gdy obserwator aktywny */}
+        {obsEnabled && liveDat && (
+          <div className="mt-3 pt-3 border-t border-[#21262d]">
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse" />
+              <span className="text-[#3fb950] text-[9px] uppercase tracking-wider">Live</span>
+            </div>
+            <div className="space-y-0.5 text-[9px] font-mono">
+              <div className="flex justify-between">
+                <span className="text-[#8b949e]">Elewacja</span>
+                <span className={liveDat.el >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
+                  {liveDat.el.toFixed(1)}°
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8b949e]">Azymut</span>
+                <span className="text-[#e6edf3]">{liveDat.az.toFixed(1)}°</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8b949e]">Alt. sat.</span>
+                <span className="text-[#e6edf3]">{liveDat.altKm.toFixed(0)} km</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8b949e]">Dystans</span>
+                <span className="text-[#e6edf3]">{liveDat.rangeKm.toFixed(0)} km</span>
+              </div>
+            </div>
+          </div>
+        )}
+        {obsEnabled && !liveDat && (
+          <div className="mt-3 pt-3 border-t border-[#21262d] text-[9px] text-[#484f58] font-mono">
+            Obliczanie Live…
           </div>
         )}
       </div>

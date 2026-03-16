@@ -1,3 +1,4 @@
+import { twoline2satrec, propagate, gstime, eciToEcf } from 'satellite.js';
 import type { SatelliteRecord, GnssSystem } from '../../types/satellite';
 import type { KeplerianEphemeris } from '../../types/ephemeris';
 import { MU, R_E, PLANE_COLORS } from '../../constants/gnss';
@@ -18,6 +19,8 @@ interface GpRecord {
   ARG_OF_PERICENTER: number;   // stopnie
   MEAN_ANOMALY:      number;   // stopnie
   SEMIMAJOR_AXIS?:   number;   // km (opcjonalne)
+  TLE_LINE1?:        string;   // dla propagatora SGP4
+  TLE_LINE2?:        string;
 }
 
 interface SystemConfig {
@@ -167,7 +170,17 @@ function gpToRecord(gp: GpRecord, nowSec: number, system: GnssSystem, cfg: Syste
     toe: 0,
   };
 
-  return { prn, system, plane, color, eph };
+  const record: SatelliteRecord = { prn, system, plane, color, eph };
+  if (gp.TLE_LINE1 && gp.TLE_LINE2) {
+    record.tleLine1 = gp.TLE_LINE1;
+    record.tleLine2 = gp.TLE_LINE2;
+    try {
+      record.satrec = twoline2satrec(gp.TLE_LINE1, gp.TLE_LINE2);
+    } catch {
+      // ignoruj błędy parsowania TLE — fallback do Keplera
+    }
+  }
+  return record;
 }
 
 // ---------- Publiczne API ----------
@@ -221,3 +234,25 @@ export function clearCache(system: GnssSystem) {
 // Zachowanie kompatybilności wstecznej dla GPS
 export const fetchGpsConstellation = () => fetchConstellation('gps');
 export const clearGpsCache         = () => clearCache('gps');
+
+/**
+ * Propaguje pozycję satelity metodą SGP4 (satellite.js).
+ * @param satrec  Obiekt SatRec z twoline2satrec (przechowywany w SatelliteRecord.satrec)
+ * @param date    Data/czas propagacji
+ * @returns Pozycja ECEF w metrach lub null gdy propagacja się nie powiodła
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function propagateSGP4(satrec: any, date: Date): { x: number; y: number; z: number } | null {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = propagate(satrec, date) as any;
+    if (!result || !result.position || typeof result.position === 'boolean') return null;
+    const gmst = gstime(date);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ecf = eciToEcf(result.position, gmst) as any;
+    // satellite.js zwraca km → konwertuj na metry
+    return { x: ecf.x * 1000, y: ecf.y * 1000, z: ecf.z * 1000 };
+  } catch {
+    return null;
+  }
+}

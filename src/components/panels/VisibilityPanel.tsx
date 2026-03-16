@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useObserverStore } from '../../store/observerStore';
-import { fetchConstellation } from '../../services/api/celestrak';
+import { fetchConstellation, propagateSGP4 } from '../../services/api/celestrak';
 import { computeGPSPosition } from '../../services/orbital/keplerMath';
-import { satElevAz } from '../../services/coordinates/ecefEnu';
+import { satElevAz, computeDOP } from '../../services/coordinates/ecefEnu';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 import { SkyPlot } from './SkyPlot';
 import { anim } from '../scene/animState';
@@ -27,6 +27,13 @@ function fmt(v: number, dec: number) {
   return v.toFixed(dec);
 }
 
+function dopColor(pdop: number): string {
+  if (pdop < 2) return '#3fb950';   // zielony — doskonały
+  if (pdop < 4) return '#d29922';   // żółty — dobry
+  if (pdop < 6) return '#f0883e';   // pomarańczowy — umiarkowany
+  return '#f85149';                  // czerwony — słaby
+}
+
 export function VisibilityPanel() {
   const {
     enabled, lat, lon, alt, minElevation, allSats, systemStatus, fetchError,
@@ -41,6 +48,7 @@ export function VisibilityPanel() {
   const [locating, setLocating] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [visibleList, setVisibleList] = useState<VisibleSat[]>([]);
+  const [useSGP4, setUseSGP4] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Przelicz listę widocznych satelitów co 2 s gdy tryb aktywny
@@ -52,10 +60,21 @@ export function VisibilityPanel() {
       const timeSec = anim.realtimeClock
         ? (Date.now() - anim.realtimeOriginMs) / 1000
         : anim.timeSec;
+      const date = anim.realtimeClock
+        ? new Date(anim.realtimeOriginMs + timeSec * 1000)
+        : new Date(anim.simulationOriginMs + timeSec * 1000);
+
       const list: VisibleSat[] = [];
       for (const sat of allSats) {
         if (!enabledSystems[sat.system]) continue;
-        const { x, y, z } = computeGPSPosition(sat.eph, timeSec, true, false);
+        let x: number, y: number, z: number;
+        if (useSGP4 && sat.satrec) {
+          const pos = propagateSGP4(sat.satrec, date);
+          if (!pos) continue;
+          ({ x, y, z } = pos);
+        } else {
+          ({ x, y, z } = computeGPSPosition(sat.eph, timeSec, true, false));
+        }
         const { el, az } = satElevAz(x, y, z, lat, lon, alt);
         if (el >= minElevation) {
           list.push({ prn: sat.prn, system: sat.system, color: sat.color, el, az });
@@ -68,7 +87,7 @@ export function VisibilityPanel() {
     computeList();
     intervalRef.current = setInterval(computeList, 2000);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [enabled, allSats, lat, lon, alt, minElevation, enabledSystems]);
+  }, [enabled, allSats, lat, lon, alt, minElevation, enabledSystems, useSGP4]);
 
   async function handleFetch() {
     const parsedLat = parseFloat(latInput);
@@ -133,6 +152,9 @@ export function VisibilityPanel() {
   for (const s of visibleList) {
     countBySys[s.system] = (countBySys[s.system] ?? 0) + 1;
   }
+
+  const dop = computeDOP(visibleList.map(s => ({ el: s.el, az: s.az })));
+  const hasSGP4 = allSats.some(s => Boolean(s.satrec));
 
   return (
     <div className="space-y-4 font-mono">
@@ -279,6 +301,46 @@ export function VisibilityPanel() {
             <span className="text-xs text-[#3fb950] font-bold">{visibleList.length}</span>
           </div>
 
+          {/* DOP */}
+          {dop && (
+            <div className="mb-3 p-2 bg-[#0d1117] rounded-lg border border-[#21262d]">
+              <div className="text-[9px] text-[#484f58] uppercase tracking-widest mb-1.5">DOP</div>
+              <div className="grid grid-cols-4 gap-1 text-center">
+                <div>
+                  <div className="text-[9px] text-[#484f58]">PDOP</div>
+                  <div className="text-[11px] font-bold font-mono" style={{ color: dopColor(dop.pdop) }}>{dop.pdop.toFixed(1)}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-[#484f58]">HDOP</div>
+                  <div className="text-[11px] font-mono text-[#8b949e]">{dop.hdop.toFixed(1)}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-[#484f58]">VDOP</div>
+                  <div className="text-[11px] font-mono text-[#8b949e]">{dop.vdop.toFixed(1)}</div>
+                </div>
+                <div>
+                  <div className="text-[9px] text-[#484f58]">GDOP</div>
+                  <div className="text-[11px] font-mono text-[#8b949e]">{dop.gdop.toFixed(1)}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Przełącznik propagatora SGP4 — tylko gdy TLE dostępne */}
+          {hasSGP4 && (
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[9px] text-[#484f58]">Propagator:</span>
+              <button
+                onClick={() => setUseSGP4(false)}
+                className={`px-2 py-0.5 rounded text-[9px] font-mono border transition-colors ${!useSGP4 ? 'bg-[#1f6feb] border-[#388bfd] text-white' : 'bg-transparent border-[#30363d] text-[#484f58] hover:text-[#8b949e]'}`}
+              >Kepler</button>
+              <button
+                onClick={() => setUseSGP4(true)}
+                className={`px-2 py-0.5 rounded text-[9px] font-mono border transition-colors ${useSGP4 ? 'bg-[#1f6feb] border-[#388bfd] text-white' : 'bg-transparent border-[#30363d] text-[#484f58] hover:text-[#8b949e]'}`}
+              >SGP4</button>
+            </div>
+          )}
+
           {visibleList.length === 0 ? (
             <div className="text-xs text-[#484f58]">Brak widocznych powyżej {minElevation}°</div>
           ) : (
@@ -319,7 +381,7 @@ export function VisibilityPanel() {
             azimuth: s.az,
             elevation: s.el,
           }))}
-          size={252}
+          size={230}
         />
       )}
     </div>
