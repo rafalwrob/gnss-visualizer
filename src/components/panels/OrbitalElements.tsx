@@ -39,8 +39,8 @@ export function OrbitalElements() {
   }
 
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-4 font-mono">
-      <div className="text-[#8b949e] text-[11px] uppercase tracking-wider mb-3">
+    <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 font-mono">
+      <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
         Elementy orbitalne
       </div>
 

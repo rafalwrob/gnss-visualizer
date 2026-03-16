@@ -134,41 +134,41 @@ export function VisibilityPanel() {
   }
 
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 text-xs font-mono space-y-3">
+    <div className="space-y-4 font-mono">
 
       {/* Pozycja obserwatora */}
-      <div>
-        <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-2">Pozycja obserwatora</div>
-        <div className="grid grid-cols-2 gap-x-2 gap-y-1.5">
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Pozycja obserwatora</div>
+        <div className="grid grid-cols-2 gap-2 mb-2">
           <div>
-            <div className="text-[#484f58] text-[9px] mb-0.5">Szer. geogr. [°]</div>
+            <div className="text-[#484f58] text-xs mb-1">Szer. geogr. [°]</div>
             <input
               type="number" step="0.0001" value={latInput}
               onChange={e => setLatInput(e.target.value)}
-              className="w-full bg-[#161b22] border border-[#30363d] rounded px-1.5 py-0.5 text-[#e6edf3] text-[10px] focus:border-[#58a6ff] outline-none"
+              className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-xs text-[#e6edf3] focus:border-[#58a6ff] outline-none"
             />
           </div>
           <div>
-            <div className="text-[#484f58] text-[9px] mb-0.5">Dług. geogr. [°]</div>
+            <div className="text-[#484f58] text-xs mb-1">Dług. geogr. [°]</div>
             <input
               type="number" step="0.0001" value={lonInput}
               onChange={e => setLonInput(e.target.value)}
-              className="w-full bg-[#161b22] border border-[#30363d] rounded px-1.5 py-0.5 text-[#e6edf3] text-[10px] focus:border-[#58a6ff] outline-none"
+              className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-xs text-[#e6edf3] focus:border-[#58a6ff] outline-none"
             />
           </div>
           <div>
-            <div className="text-[#484f58] text-[9px] mb-0.5">Wys. n. el. [m]</div>
+            <div className="text-[#484f58] text-xs mb-1">Wys. n. el. [m]</div>
             <input
               type="number" step="1" value={altInput}
               onChange={e => setAltInput(e.target.value)}
-              className="w-full bg-[#161b22] border border-[#30363d] rounded px-1.5 py-0.5 text-[#e6edf3] text-[10px] focus:border-[#58a6ff] outline-none"
+              className="w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-2.5 py-1.5 text-xs text-[#e6edf3] focus:border-[#58a6ff] outline-none"
             />
           </div>
           <div className="flex items-end">
             <button
               onClick={handleGeolocation}
               disabled={locating}
-              className="w-full py-0.5 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[9px] transition-colors disabled:opacity-50"
+              className="w-full py-1.5 rounded-lg bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-xs transition-colors disabled:opacity-50"
             >
               {locating ? '…' : '📍 Moja pozycja'}
             </button>
@@ -177,34 +177,34 @@ export function VisibilityPanel() {
       </div>
 
       {/* Maska elewacji */}
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[#8b949e] text-[9px]">Maska elewacji</span>
-          <span className="text-[#a371f7] text-[10px]">{minElevation}°</span>
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[#6e7681] text-[10px] uppercase tracking-widest">Maska elewacji</span>
+          <span className="text-xs text-[#a371f7] font-bold">{minElevation}°</span>
         </div>
         <input
           type="range" min={0} max={30} step={1} value={minElevation}
           onChange={e => setMinElevation(parseInt(e.target.value))}
           className="w-full accent-purple-500"
         />
-        <div className="flex justify-between text-[9px] text-[#484f58]">
+        <div className="flex justify-between text-xs text-[#484f58] mt-1">
           <span>0°</span><span>10°</span><span>20°</span><span>30°</span>
         </div>
       </div>
 
       {/* Przycisk fetch */}
-      <div className="flex gap-1">
+      <div className="flex gap-2">
         <button
           onClick={handleFetch}
           disabled={fetching}
-          className="flex-1 py-1.5 rounded text-[10px] font-bold border transition-all disabled:opacity-50 bg-[#238636] border-[#238636] text-white hover:bg-[#2ea043]"
+          className="flex-1 py-2 rounded-xl text-xs font-bold border transition-all disabled:opacity-50 bg-[#238636] border-[#238636] text-white hover:bg-[#2ea043]"
         >
           {fetching ? 'Pobieranie…' : enabled ? '↺ Odśwież dane' : '▶ Pobierz i włącz'}
         </button>
         {enabled && (
           <button
             onClick={handleDisable}
-            className="px-2 py-1.5 rounded bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] border border-[#30363d] text-[9px] transition-colors"
+            className="px-3 py-2 rounded-xl bg-[#161b22] hover:bg-[#21262d] text-[#8b949e] border border-[#30363d] text-xs transition-colors"
           >
             ✕
           </button>
@@ -213,9 +213,9 @@ export function VisibilityPanel() {
 
       {/* Status pobierania */}
       {Object.keys(systemStatus).length > 0 && (
-        <div className="border border-[#21262d] rounded p-2">
-          <div className="text-[#484f58] text-[9px] mb-1.5">Status pobierania</div>
-          <div className="grid grid-cols-3 gap-1">
+        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+          <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Status pobierania</div>
+          <div className="grid grid-cols-3 gap-1.5">
             {SYSTEMS.map(sys => {
               const info = systemStatus[sys];
               if (!info) return null;
@@ -223,15 +223,13 @@ export function VisibilityPanel() {
                 : info.status === 'error' ? '#f85149'
                 : '#58a6ff';
               return (
-                <div key={sys} className="flex items-center gap-1">
-                  <span style={{ color }} className="text-[9px]">
+                <div key={sys} className="flex items-center gap-1.5">
+                  <span style={{ color }} className="text-xs">
                     {info.status === 'ok' ? '✓' : info.status === 'error' ? '✗' : '…'}
                   </span>
-                  <span className="text-[#8b949e] text-[9px]">
-                    {SYS_SHORT[sys]}
-                  </span>
+                  <span className="text-xs text-[#8b949e]">{SYS_SHORT[sys]}</span>
                   {info.status === 'ok' && (
-                    <span className="text-[#484f58] text-[9px]">{info.count}</span>
+                    <span className="text-xs text-[#484f58]">{info.count}</span>
                   )}
                 </div>
               );
@@ -241,14 +239,14 @@ export function VisibilityPanel() {
       )}
 
       {fetchError && (
-        <div className="text-[#f85149] text-[9px]">✗ {fetchError}</div>
+        <div className="text-xs text-[#f85149] px-1">✗ {fetchError}</div>
       )}
 
       {/* Filtr konstelacji — tylko gdy dane załadowane */}
       {enabled && allSats.length > 0 && (
-        <div>
-          <div className="text-[#484f58] text-[9px] mb-1">Filtr konstelacji</div>
-          <div className="flex flex-wrap gap-1">
+        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+          <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Konstelacje</div>
+          <div className="flex flex-wrap gap-1.5">
             {SYSTEMS.map(sys => {
               const info = GNSS_SYSTEMS[sys];
               const active = enabledSystems[sys];
@@ -258,7 +256,7 @@ export function VisibilityPanel() {
                 <button
                   key={sys}
                   onClick={() => toggleSystem(sys)}
-                  className="px-1.5 py-0.5 rounded text-[9px] font-bold border transition-all"
+                  className="px-2 py-1 rounded-lg text-xs font-bold border transition-all"
                   style={active
                     ? { backgroundColor: info.color + '33', borderColor: info.color, color: info.color }
                     : { backgroundColor: 'transparent', borderColor: '#30363d', color: '#484f58' }
@@ -274,24 +272,17 @@ export function VisibilityPanel() {
 
       {/* Lista widocznych satelitów */}
       {enabled && (
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[#3fb950] text-[9px] font-bold">
-              ▲ Widoczne: {visibleList.length}
-            </span>
-            <span className="text-[#484f58] text-[9px]">
-              {Object.entries(countBySys)
-                .map(([sys, cnt]) => `${SYS_SHORT[sys as GnssSystem]}:${cnt}`)
-                .join('  ')}
-            </span>
+        <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Widoczne satelity</div>
+            <span className="text-xs text-[#3fb950] font-bold">{visibleList.length}</span>
           </div>
 
           {visibleList.length === 0 ? (
-            <div className="text-[#484f58] text-[9px]">Brak widocznych satelitów powyżej {minElevation}°</div>
+            <div className="text-xs text-[#484f58]">Brak widocznych powyżej {minElevation}°</div>
           ) : (
-            <div className="space-y-0.5 max-h-64 overflow-y-auto pr-0.5">
-              {/* Nagłówek */}
-              <div className="grid text-[9px] text-[#484f58] mb-1" style={{ gridTemplateColumns: '2.5rem 1fr 3rem 3rem' }}>
+            <div className="space-y-0.5 max-h-64 overflow-y-auto">
+              <div className="grid text-[10px] text-[#484f58] mb-2" style={{ gridTemplateColumns: '2.5rem 1fr 3rem 3rem' }}>
                 <span>PRN</span>
                 <span>System</span>
                 <span className="text-right">El.</span>
@@ -300,7 +291,7 @@ export function VisibilityPanel() {
               {visibleList.map(s => (
                 <div
                   key={s.prn}
-                  className="grid items-center text-[9px] py-0.5 border-b border-[#161b22]"
+                  className="grid items-center text-xs py-0.5 border-b border-[#21262d]"
                   style={{ gridTemplateColumns: '2.5rem 1fr 3rem 3rem' }}
                 >
                   <span className="font-bold" style={{ color: s.color }}>{s.prn}</span>
@@ -312,8 +303,8 @@ export function VisibilityPanel() {
             </div>
           )}
 
-          <div className="text-[#484f58] text-[9px] mt-1.5">
-            Pozycja: {lat.toFixed(4)}°N  {lon.toFixed(4)}°E  {alt.toFixed(0)} m
+          <div className="text-[10px] text-[#484f58] mt-3">
+            {lat.toFixed(4)}°N · {lon.toFixed(4)}°E · {alt.toFixed(0)} m n.p.m.
           </div>
         </div>
       )}

@@ -34,15 +34,15 @@ function Toggle({
 function SettingsPanel() {
   const { showHarmonics, useEcef, showGroundTrack, setShowHarmonics, setUseEcef, setShowGroundTrack } = useUiStore();
   return (
-    <div className="space-y-5 font-mono">
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-xl p-5">
-        <div className="text-[#8b949e] text-xs uppercase tracking-widest mb-4">Układ współrzędnych</div>
+    <div className="space-y-4 font-mono">
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Układ współrzędnych</div>
         <div className="flex gap-2 mb-3">
           {(['ECI', 'ECEF'] as const).map(sys => {
             const active = sys === 'ECEF' ? useEcef : !useEcef;
             return (
               <button key={sys} onClick={() => setUseEcef(sys === 'ECEF')}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-bold border transition-all ${
+                className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
                   active ? 'bg-[#1f6feb] border-[#1f6feb] text-white'
                          : 'border-[#30363d] text-[#6e7681] hover:border-[#58a6ff] hover:text-[#58a6ff]'
                 }`}
@@ -52,13 +52,13 @@ function SettingsPanel() {
             );
           })}
         </div>
-        <div className="text-sm text-[#484f58]">
+        <div className="text-xs text-[#484f58]">
           {useEcef ? 'ECEF — ślad w ukł. stałym z Ziemią (roseta)' : 'ECI — inercjalny, czyste elipsy orbit'}
         </div>
       </div>
 
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-xl p-5 space-y-5">
-        <div className="text-[#8b949e] text-xs uppercase tracking-widest">Wizualizacja</div>
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Wizualizacja</div>
         <Toggle label="Ślad naziemny" value={showGroundTrack} onChange={setShowGroundTrack} />
         <Toggle
           label="Perturbacje harmoniczne (J₂)"
@@ -74,12 +74,12 @@ function SettingsPanel() {
 // ── Konfiguracja zakładek ──────────────────────────────────────────────────────
 
 const TABS: { id: LeftTab; label: string; title: string }[] = [
-  { id: 'orbital',    label: 'Orbita',      title: 'Elementy orbitalne' },
+  { id: 'orbital',    label: 'Elementy',    title: 'Parametry orbity' },
   { id: 'satellites', label: 'Satelity',    title: 'Lista satelitów' },
-  { id: 'kepler',     label: 'Kepler',      title: 'Kalkulator Keplera' },
+  { id: 'kepler',     label: 'Kalkulator',  title: 'Kalkulator Keplera' },
   { id: 'visibility', label: 'Widoczność',  title: 'Widoczność satelitów' },
   { id: 'receiver',   label: 'Odbiornik',   title: 'Odbiornik GNSS' },
-  { id: 'settings',   label: 'Ustawienia',  title: 'Ustawienia' },
+  { id: 'settings',   label: 'Scena',       title: 'Ustawienia sceny' },
 ];
 
 // ── Główny komponent ──────────────────────────────────────────────────────────

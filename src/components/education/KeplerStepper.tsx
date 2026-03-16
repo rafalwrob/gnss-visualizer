@@ -109,8 +109,8 @@ export function KeplerStepper() {
   const vals = stepValues[step] ?? {};
 
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-3 font-mono text-xs">
-      <div className="text-[#58a6ff] text-[10px] uppercase tracking-wider mb-3">Kalkulator orbitalny</div>
+    <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 font-mono text-xs">
+      <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Kalkulator orbitalny</div>
 
       {/* Track */}
       <div className="flex items-center mb-4 overflow-x-auto pb-1">
@@ -122,7 +122,7 @@ export function KeplerStepper() {
             <div key={n} className="flex items-center">
               <button
                 onClick={() => setStep(n)}
-                className={`w-6 h-6 rounded-full text-[9px] font-bold flex-shrink-0 border transition-colors ${
+                className={`w-6 h-6 rounded-full text-[10px] font-bold flex-shrink-0 border transition-colors ${
                   isActive ? 'bg-[#1f6feb] border-[#58a6ff] text-white' :
                   isDone   ? 'bg-[#238636] border-[#2ea043] text-white' :
                              'bg-[#21262d] border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]'
@@ -148,33 +148,33 @@ export function KeplerStepper() {
 
       {/* Treść */}
       <div className="mb-3">
-        <div className="text-[#f0f6fc] font-bold text-[11px] mb-1">{s.title}</div>
-        <pre className="text-[#a371f7] text-[10px] bg-[#161b22] px-2 py-1.5 rounded mb-1 whitespace-pre-wrap">{s.formula}</pre>
-        <div className="text-[#8b949e] text-[10px] leading-relaxed">{s.explanation}</div>
+        <div className="text-[#f0f6fc] font-bold text-xs mb-1">{s.title}</div>
+        <pre className="text-[#a371f7] text-xs bg-[#0d1117] px-2.5 py-2 rounded-lg mb-1.5 whitespace-pre-wrap">{s.formula}</pre>
+        <div className="text-[#8b949e] text-xs leading-relaxed">{s.explanation}</div>
       </div>
 
       {/* Wartości */}
-      <div className="grid grid-cols-3 gap-1 mb-3">
+      <div className="grid grid-cols-3 gap-1.5 mb-3">
         {Object.entries(vals).map(([k, v]) => (
-          <div key={k} className="bg-[#161b22] rounded px-2 py-1.5 text-center">
-            <div className="text-[#6e7681] text-[9px]">{k}</div>
-            <div className="text-[#58a6ff] text-[10px] font-bold truncate">{v}</div>
+          <div key={k} className="bg-[#0d1117] rounded-lg px-2 py-2 text-center">
+            <div className="text-[#6e7681] text-[10px] mb-0.5">{k}</div>
+            <div className="text-[#58a6ff] text-xs font-bold truncate">{v}</div>
           </div>
         ))}
       </div>
 
       {/* Nawigacja */}
-      <div className="flex gap-1">
+      <div className="flex gap-1.5">
         <button
           onClick={() => setStep(s => Math.max(1, s - 1))}
           disabled={step === 1}
-          className="px-3 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-40 text-[10px]"
+          className="px-3 py-1.5 rounded-lg bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-40 text-xs"
         >
           ← Wstecz
         </button>
         <button
           onClick={startAuto}
-          className={`flex-1 py-1 rounded text-[10px] font-bold transition-colors ${
+          className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors ${
             autoRunning ? 'bg-red-700 hover:bg-red-600 text-white' : 'bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff]'
           }`}
         >
@@ -183,7 +183,7 @@ export function KeplerStepper() {
         <button
           onClick={() => setStep(s => Math.min(9, s + 1))}
           disabled={step === 9}
-          className="px-3 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-40 text-[10px]"
+          className="px-3 py-1.5 rounded-lg bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-40 text-xs"
         >
           Dalej →
         </button>

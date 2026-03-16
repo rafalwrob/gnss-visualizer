@@ -40,8 +40,8 @@ const STATUS_LABELS: Record<string, string> = {
 
 function SectionCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-xl p-4">
-      <div className="text-[#8b949e] text-xs uppercase tracking-widest mb-3 font-mono">{title}</div>
+    <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+      <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3 font-mono">{title}</div>
       {children}
     </div>
   );

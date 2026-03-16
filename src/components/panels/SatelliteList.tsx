@@ -77,8 +77,8 @@ export function SatelliteList() {
 
   if (mode === 'single') {
     return (
-      <div className="bg-[#0d1117] border border-[#30363d] rounded-lg p-4 font-mono">
-        <div className="text-[#8b949e] text-[11px] uppercase tracking-wider mb-3">
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 font-mono">
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
           RINEX / Plik nawigacyjny
         </div>
         <input ref={fileRef} type="file" accept=".n,.rnx,.nav,.22n,.23n,.21n,.20n" className="hidden" onChange={handleFile} />
@@ -93,9 +93,9 @@ export function SatelliteList() {
   }
 
   return (
-    <div className="bg-[#0d1117] border border-[#30363d] rounded-lg font-mono">
+    <div className="bg-[#161b22] border border-[#30363d] rounded-xl font-mono">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#30363d]">
-        <span className="text-[#8b949e] text-[11px] uppercase tracking-wider">
+        <span className="text-[#6e7681] text-[10px] uppercase tracking-widest">
           Satelity ({satellites.length})
         </span>
         <div className="flex gap-1">
