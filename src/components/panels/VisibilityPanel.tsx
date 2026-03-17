@@ -6,6 +6,7 @@ import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import { satElevAz, computeDOP, latLonAltToEcef } from '../../services/coordinates/ecefEnu';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 import { SkyPlot } from './SkyPlot';
+import type { SkyPlotArc } from './SkyPlot';
 import { anim } from '../scene/animState';
 import type { GnssSystem } from '../../types/satellite';
 
@@ -46,7 +47,9 @@ export function VisibilityPanel() {
 
   const [visibleList, setVisibleList] = useState<VisibleSat[]>([]);
   const [useSGP4, setUseSGP4] = useState(false);
+  const [arcs, setArcs] = useState<SkyPlotArc[]>([]);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const arcsTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Przelicz listę widocznych satelitów co 2 s
   useEffect(() => {
@@ -106,6 +109,42 @@ export function VisibilityPanel() {
     intervalRef.current = setInterval(computeList, 250);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [enabled, allSats, lat, lon, alt, minElevation, enabledSystems, useSGP4]);
+
+  // Oblicz orbit arcs co 30s (3h do przodu co 5 min, tylko Kepler)
+  useEffect(() => {
+    if (arcsTimerRef.current) clearInterval(arcsTimerRef.current);
+    if (!enabled || allSats.length === 0) { setArcs([]); return; }
+
+    function computeArcs() {
+      const timeSec = anim.realtimeClock
+        ? (Date.now() - anim.realtimeOriginMs) / 1000
+        : anim.timeSec;
+
+      const result: SkyPlotArc[] = [];
+      for (const sat of allSats) {
+        if (!enabledSystems[sat.system]) continue;
+        const points: { az: number; el: number }[] = [];
+
+        // 3h do przodu co 5 minut = 37 punktów
+        for (let i = 0; i <= 36; i++) {
+          const t = timeSec + i * 300;
+          const { x, y, z } = computeGPSPosition(sat.eph, t, true, false);
+          const { el, az } = satElevAz(x, y, z, lat, lon, alt);
+          points.push({ el, az });
+        }
+
+        // Dodaj tylko jeśli choć 1 punkt powyżej minElevation
+        if (points.some(p => p.el >= minElevation)) {
+          result.push({ prn: sat.prn, system: sat.system, points });
+        }
+      }
+      setArcs(result);
+    }
+
+    computeArcs();
+    arcsTimerRef.current = setInterval(computeArcs, 30_000);
+    return () => { if (arcsTimerRef.current) clearInterval(arcsTimerRef.current); };
+  }, [enabled, allSats, lat, lon, alt, minElevation, enabledSystems]);
 
   const dop = computeDOP(visibleList.map(s => ({ el: s.el, az: s.az })));
   const hasSGP4 = allSats.some(s => Boolean(s.satrec));
@@ -278,7 +317,8 @@ export function VisibilityPanel() {
             azimuth: s.az,
             elevation: s.el,
           }))}
-          size={230}
+          arcs={arcs}
+          size={300}
         />
       )}
     </div>
