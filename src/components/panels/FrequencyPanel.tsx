@@ -3,315 +3,283 @@ import { FREQ_BANDS } from '../../constants/frequencies';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 import type { GnssSystem } from '../../types/satellite';
 
-// ── Stałe wykresu ──────────────────────────────────────────────────────────────
+// ── Stałe ─────────────────────────────────────────────────────────────────────
 
-const SYSTEMS: { id: GnssSystem; label: string }[] = [
-  { id: 'gps',     label: 'GPS' },
-  { id: 'galileo', label: 'GAL' },
-  { id: 'glonass', label: 'GLO' },
-  { id: 'beidou',  label: 'BDS' },
+const SYSTEMS: { id: GnssSystem; label: string; color: string }[] = [
+  { id: 'gps',     label: 'GPS',     color: '#1f6feb' },
+  { id: 'galileo', label: 'Galileo', color: '#f0883e' },
+  { id: 'glonass', label: 'GLONASS', color: '#da3633' },
+  { id: 'beidou',  label: 'BeiDou',  color: '#f7c948' },
 ];
 
-const FREQ_MIN = 1150;
-const FREQ_MAX = 1660;
-const FREQ_RANGE = FREQ_MAX - FREQ_MIN;
+const F_MIN = 1155, F_MAX = 1660; // MHz
+const F_RANGE = F_MAX - F_MIN;
 
-const CHART_W  = 290;
-const LABEL_W  = 42;
-const ROW_H    = 48;
-const BAR_H    = 24;
-const BAR_Y    = (ROW_H - BAR_H) / 2;
+// Chart SVG dimensions
+const W = 360, H = 180;
+const PAD = { t: 12, r: 8, b: 28, l: 8 };
+const IW = W - PAD.l - PAD.r;
+const IH = H - PAD.t - PAD.b;
 
-const TICK_FREQS = [1200, 1250, 1300, 1350, 1400, 1450, 1500, 1550, 1600, 1650];
+function fx(f: number) { return PAD.l + ((f - F_MIN) / F_RANGE) * IW; }
 
-function fx(freq: number) {
-  return LABEL_W + ((freq - FREQ_MIN) / FREQ_RANGE) * CHART_W;
-}
-function fw(widthMHz: number) {
-  return Math.max((widthMHz / FREQ_RANGE) * CHART_W, 3);
-}
+const TICK_FREQS = [1200, 1250, 1300, 1350, 1400, 1450, 1500, 1550, 1575, 1600, 1650];
 
-const SVG_W = LABEL_W + CHART_W + 2;
-const CHART_H_SVG = SYSTEMS.length * ROW_H;
+// ── PSD Generator ─────────────────────────────────────────────────────────────
 
-// ── Sinusoida nośna ────────────────────────────────────────────────────────────
+/** Gaussian PSD path as a filled SVG area */
+function makePSD(freqMHz: number, bwMHz: number): string {
+  const sigma = (bwMHz / 2.355) * 2.2;
+  const f0 = Math.max(F_MIN, freqMHz - sigma * 4.5);
+  const f1 = Math.min(F_MAX, freqMHz + sigma * 4.5);
+  const N = 120;
+  const bottom = PAD.t + IH;
 
-/** Zwraca punkty polyline sinusoidy o podwójnej szerokości (dla płynnej pętli) */
-function makeCarrierPoints(bx: number, by: number, bw: number, bh: number, N = 80): string {
-  const pts: string[] = [];
-  const amplitude = bh * 0.28;
-  const my = by + bh / 2;
-  for (let i = 0; i <= N * 2; i++) {
-    const t = i / N;
-    const x = bx + t * bw;
-    const y = my + amplitude * Math.sin(t * 2 * Math.PI * 3);
-    pts.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+  let path = `M${fx(f0).toFixed(1)},${bottom}`;
+  for (let i = 0; i <= N; i++) {
+    const f = f0 + (i / N) * (f1 - f0);
+    const p = Math.exp(-0.5 * ((f - freqMHz) / sigma) ** 2);
+    const y = PAD.t + IH - p * IH * 0.88;
+    path += ` L${fx(f).toFixed(1)},${y.toFixed(1)}`;
   }
-  return pts.join(' ');
+  path += ` L${fx(f1).toFixed(1)},${bottom} Z`;
+  return path;
 }
+
+// Pre-compute paths (static)
+const BAND_PATHS = FREQ_BANDS.map(b => makePSD(b.freq, b.width));
 
 // ── Komponent ──────────────────────────────────────────────────────────────────
 
-interface BandInfo {
-  name: string;
-  freq: number;
-  width: number;
-  color: string;
-  signals: string[];
-}
-
 export function FrequencyPanel() {
+  const [activeSystems, setActiveSystems] = useState<Set<GnssSystem>>(
+    new Set(['gps', 'galileo', 'glonass', 'beidou'])
+  );
   const [hoveredBand, setHoveredBand] = useState<string | null>(null);
 
-  // Pre-kalkulacja sinusoid dla pasm ≥15px
-  const carrierData = useMemo(() => {
-    return FREQ_BANDS.map(band => {
-      const bw = fw(band.width);
-      if (bw < 15) return null;
-      const bx = fx(band.freq) - bw / 2;
-      return { bw, bx, points: makeCarrierPoints(bx, 0, bw, BAR_H) };
+  function toggleSystem(sys: GnssSystem) {
+    setActiveSystems(prev => {
+      const next = new Set(prev);
+      if (next.has(sys)) { next.delete(sys); } else { next.add(sys); }
+      return next;
     });
-  }, []);
+  }
 
-  const hoveredInfo: BandInfo | null = hoveredBand
-    ? (FREQ_BANDS.find(b => b.name === hoveredBand) ?? null)
-    : null;
+  const hoveredInfo = FREQ_BANDS.find(b => b.name === hoveredBand) ?? null;
+
+  // Bands sorted: non-hovered first, hovered last (on top)
+  const sortedBands = useMemo(() => {
+    return FREQ_BANDS.map((b, i) => ({ band: b, idx: i }))
+      .filter(({ band }) => band.systems.some(s => activeSystems.has(s)))
+      .sort((a, b) => a.band.name === hoveredBand ? 1 : b.band.name === hoveredBand ? -1 : 0);
+  }, [activeSystems, hoveredBand]);
 
   return (
     <div className="space-y-4 font-mono">
 
-      {/* Spektrum GNSS */}
+      {/* ── Filtr konstelacji ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-4">
-          Spektrum sygnałów GNSS
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Konstelacje</div>
+        <div className="flex gap-2 flex-wrap">
+          {SYSTEMS.map(({ id, label, color }) => {
+            const active = activeSystems.has(id);
+            return (
+              <button
+                key={id}
+                onClick={() => toggleSystem(id)}
+                className="px-3 py-1.5 rounded-lg text-xs font-bold border transition-all"
+                style={active
+                  ? { backgroundColor: color + '22', borderColor: color, color }
+                  : { backgroundColor: 'transparent', borderColor: '#30363d', color: '#484f58' }
+                }
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── Spectrum ── */}
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
+          Widmo PSD — sygnały GNSS
         </div>
 
         <svg
-          width={SVG_W}
-          height={CHART_H_SVG + 30}
-          className="block overflow-visible"
+          viewBox={`0 0 ${W} ${H}`}
+          className="w-full block"
+          style={{ height: H }}
           onMouseLeave={() => setHoveredBand(null)}
         >
           <defs>
-            {/* Clip-paths dla sinusoid nośnych */}
-            {FREQ_BANDS.map((band, bi) => {
-              const bw = fw(band.width);
-              if (bw < 15) return null;
-              const bx = fx(band.freq) - bw / 2;
-              return SYSTEMS.map((_, rowIdx) => (
-                <clipPath key={`cp-${bi}-${rowIdx}`} id={`cp-${bi}-${rowIdx}`}>
-                  <rect x={bx} y={rowIdx * ROW_H + BAR_Y} width={bw} height={BAR_H} rx="2" />
-                </clipPath>
-              ));
-            })}
+            {FREQ_BANDS.map((band, i) => (
+              <linearGradient key={band.name} id={`g${i}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={band.color} stopOpacity="0.85" />
+                <stop offset="100%" stopColor={band.color} stopOpacity="0.12" />
+              </linearGradient>
+            ))}
           </defs>
 
-          {/* Pionowe linie siatki */}
-          {TICK_FREQS.map(f => (
-            <line key={f} x1={fx(f)} y1={0} x2={fx(f)} y2={CHART_H_SVG}
-              stroke="#1c2333" strokeWidth={1} />
-          ))}
+          {/* Tło */}
+          <rect width={W} height={H} fill="#0d1117" rx="6" />
 
-          {/* Wiersze systemów */}
-          {SYSTEMS.map(({ id, label }, rowIdx) => {
-            const y = rowIdx * ROW_H;
-            const sysColor = GNSS_SYSTEMS[id]?.color ?? '#8b949e';
-            const sysBands = FREQ_BANDS.filter(b => b.systems.includes(id));
-
+          {/* Linie poziome siatki */}
+          {[0.25, 0.5, 0.75, 1].map(p => {
+            const y = PAD.t + IH - p * IH * 0.88;
             return (
-              <g key={id}>
-                {/* Tło wiersza */}
-                <rect x={0} y={y} width={SVG_W} height={ROW_H}
-                  fill={rowIdx % 2 === 0 ? '#0d1117' : '#111720'} />
+              <line key={p}
+                x1={PAD.l} y1={y} x2={PAD.l + IW} y2={y}
+                stroke="#1c2333" strokeWidth="0.5"
+              />
+            );
+          })}
 
-                {/* Etykieta systemu */}
-                <text x={LABEL_W / 2} y={y + ROW_H / 2 + 4}
-                  textAnchor="middle" fill={sysColor}
-                  fontSize={10} fontFamily="monospace" fontWeight="bold">
-                  {label}
+          {/* Pionowe linie siatki + etykiety */}
+          {TICK_FREQS.map(f => {
+            const x = fx(f);
+            const isMajor = f % 100 === 0;
+            return (
+              <g key={f}>
+                <line x1={x} y1={PAD.t} x2={x} y2={PAD.t + IH}
+                  stroke={isMajor ? '#21262d' : '#161b22'} strokeWidth={isMajor ? 0.8 : 0.4} />
+                <text x={x} y={H - 6}
+                  textAnchor="middle" fill={isMajor ? '#484f58' : '#2d333b'}
+                  fontSize={isMajor ? 7.5 : 6.5} fontFamily="monospace">
+                  {f}
                 </text>
-
-                {/* Paski pasm */}
-                {sysBands.map((band, bandLocalIdx) => {
-                  const bandGlobalIdx = FREQ_BANDS.indexOf(band);
-                  const cx  = fx(band.freq);
-                  const bw  = fw(band.width);
-                  const bx  = cx - bw / 2;
-                  const showLabel = bw >= 20;
-                  const isHovered = hoveredBand === band.name;
-                  const carrier = carrierData[bandGlobalIdx];
-
-                  // Offset pulsowania — rozłożone w czasie
-                  const pulseDelay = (rowIdx * sysBands.length + bandLocalIdx) * 0.5;
-
-                  return (
-                    <g
-                      key={band.name}
-                      style={{ cursor: 'pointer' }}
-                      onMouseEnter={() => setHoveredBand(band.name)}
-                    >
-                      {/* Pasek z pulsowaniem */}
-                      <rect
-                        x={bx} y={y + BAR_Y}
-                        width={bw} height={BAR_H}
-                        fill={band.color}
-                        fillOpacity={isHovered ? 0.95 : 0.80}
-                        rx={2}
-                        stroke={isHovered ? 'white' : 'none'}
-                        strokeWidth={isHovered ? 1 : 0}
-                      >
-                        {!isHovered && (
-                          <animate
-                            attributeName="fillOpacity"
-                            values="0.55;0.92;0.55"
-                            dur="2.5s"
-                            begin={`${pulseDelay}s`}
-                            repeatCount="indefinite"
-                          />
-                        )}
-                      </rect>
-
-                      {/* Fala nośna */}
-                      {carrier && (
-                        <g clipPath={`url(#cp-${bandGlobalIdx}-${rowIdx})`}>
-                          <polyline
-                            points={carrier.points}
-                            fill="none"
-                            stroke="white"
-                            strokeWidth="0.8"
-                            strokeOpacity="0.25"
-                            transform={`translate(0,${y + BAR_Y})`}
-                          >
-                            <animateTransform
-                              attributeName="transform"
-                              type="translate"
-                              from={`0 ${y + BAR_Y}`}
-                              to={`${-carrier.bw} ${y + BAR_Y}`}
-                              dur="1.2s"
-                              repeatCount="indefinite"
-                            />
-                          </polyline>
-                        </g>
-                      )}
-
-                      {/* Etykieta */}
-                      {showLabel && (
-                        <text
-                          x={cx} y={y + BAR_Y + BAR_H / 2 + 4}
-                          textAnchor="middle" fill="#fff"
-                          fontSize={9} fontFamily="monospace" fontWeight="bold"
-                          style={{ pointerEvents: 'none' }}
-                        >
-                          {band.name}
-                        </text>
-                      )}
-                    </g>
-                  );
-                })}
               </g>
             );
           })}
 
-          {/* Linia skanująca */}
-          <line y1={0} y2={CHART_H_SVG} stroke="#58a6ff" strokeOpacity="0.22" strokeWidth="1.5">
-            <animate attributeName="x1" from={LABEL_W} to={SVG_W} dur="5s" repeatCount="indefinite" />
-            <animate attributeName="x2" from={LABEL_W} to={SVG_W} dur="5s" repeatCount="indefinite" />
-          </line>
+          {/* PSD fills */}
+          {sortedBands.map(({ band, idx }) => {
+            const isHovered = band.name === hoveredBand;
+            return (
+              <path
+                key={band.name}
+                d={BAND_PATHS[idx]}
+                fill={`url(#g${idx})`}
+                stroke={band.color}
+                strokeWidth={isHovered ? 1.5 : 0.5}
+                strokeOpacity={isHovered ? 1 : 0.6}
+                opacity={isHovered ? 1 : 0.75}
+                style={{ cursor: 'pointer', transition: 'opacity 0.15s, stroke-width 0.15s' }}
+                onMouseEnter={() => setHoveredBand(band.name)}
+              />
+            );
+          })}
+
+          {/* Etykiety pasm (przy szczycie) */}
+          {sortedBands.map(({ band }) => {
+            const bw = band.width;
+            if (bw < 12) return null;
+            const isHovered = band.name === hoveredBand;
+            const peakY = PAD.t + IH - IH * 0.88 - 10;
+            return (
+              <text
+                key={`lbl-${band.name}`}
+                x={fx(band.freq)} y={peakY}
+                textAnchor="middle"
+                fill={band.color}
+                fontSize={isHovered ? 9 : 8}
+                fontFamily="monospace"
+                fontWeight={isHovered ? 'bold' : 'normal'}
+                opacity={isHovered ? 1 : 0.7}
+                style={{ pointerEvents: 'none', transition: 'opacity 0.15s' }}
+              >
+                {band.name}
+              </text>
+            );
+          })}
 
           {/* Oś X */}
-          <line x1={LABEL_W} y1={CHART_H_SVG} x2={SVG_W} y2={CHART_H_SVG}
-            stroke="#30363d" strokeWidth={1} />
+          <line x1={PAD.l} y1={PAD.t + IH} x2={PAD.l + IW} y2={PAD.t + IH}
+            stroke="#30363d" strokeWidth="1" />
 
-          {/* Znaczniki i etykiety osi X */}
-          {TICK_FREQS.map(f => (
-            <g key={f}>
-              <line x1={fx(f)} y1={CHART_H_SVG} x2={fx(f)} y2={CHART_H_SVG + 5}
-                stroke="#484f58" strokeWidth={1} />
-              <text x={fx(f)} y={CHART_H_SVG + 16}
-                textAnchor="middle" fill="#484f58"
-                fontSize={8} fontFamily="monospace">
-                {f}
-              </text>
-            </g>
-          ))}
-
-          {/* Podpis osi X */}
-          <text x={LABEL_W + CHART_W / 2} y={CHART_H_SVG + 28}
-            textAnchor="middle" fill="#6e7681"
-            fontSize={9} fontFamily="monospace">
-            Częstotliwość [MHz]
+          {/* Podpis osi */}
+          <text x={W / 2} y={H - 1}
+            textAnchor="middle" fill="#484f58"
+            fontSize={7.5} fontFamily="monospace">
+            MHz
           </text>
         </svg>
 
-        {/* Tooltip hovered pasma */}
-        {hoveredInfo && (
-          <div className="mt-2 bg-[#0d1117] border border-[#30363d] rounded-lg px-3 py-2 text-xs">
-            <div className="font-bold mb-0.5" style={{ color: hoveredInfo.color }}>
-              {hoveredInfo.name}
+        {/* Tooltip pod wykresem */}
+        <div style={{ minHeight: 56 }}>
+          {hoveredInfo ? (
+            <div className="mt-3 bg-[#0d1117] border border-[#30363d] rounded-lg px-4 py-3 transition-all">
+              <div className="flex items-center gap-3 mb-1.5">
+                <span className="text-sm font-bold" style={{ color: hoveredInfo.color }}>
+                  {hoveredInfo.name}
+                </span>
+                <span className="text-[#484f58] text-xs">{hoveredInfo.freq.toFixed(2)} MHz</span>
+                <span className="text-[#30363d] text-xs">BW {hoveredInfo.width} MHz</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {hoveredInfo.systems.map(s => (
+                  <span key={s}
+                    className="px-2 py-0.5 rounded text-[10px] font-bold"
+                    style={{ backgroundColor: GNSS_SYSTEMS[s]?.color + '22', color: GNSS_SYSTEMS[s]?.color }}>
+                    {s.toUpperCase()}
+                  </span>
+                ))}
+                <span className="text-[#6e7681] text-[10px] self-center ml-1">
+                  {hoveredInfo.signals.join(' · ')}
+                </span>
+              </div>
             </div>
-            <div className="text-[#8b949e]">
-              <span className="text-[#484f58]">f: </span>{hoveredInfo.freq.toFixed(2)} MHz
-              <span className="text-[#484f58] ml-2">BW: </span>{hoveredInfo.width} MHz
+          ) : (
+            <div className="mt-3 text-[10px] text-[#30363d] text-center py-2">
+              Najedź na pasmo aby zobaczyć szczegóły
             </div>
-            <div className="text-[#6e7681] mt-0.5 leading-relaxed">
-              {hoveredInfo.signals.join(' · ')}
-            </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Tabela szczegółów pasm */}
+      {/* ── Tabela pasm ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
         <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
           Szczegóły pasm
         </div>
-
-        <div
-          className="grid text-[10px] text-[#484f58] mb-2 pb-1 border-b border-[#21262d]"
-          style={{ gridTemplateColumns: '4rem 5.5rem 3.5rem 1fr' }}
-        >
-          <span>Pasmo</span>
-          <span>Freq [MHz]</span>
-          <span>BW [MHz]</span>
-          <span>Sygnały</span>
-        </div>
-
-        {FREQ_BANDS.map(band => (
-          <div
-            key={band.name}
-            className="grid items-start text-xs py-1 border-b border-[#1c2333] last:border-0"
-            style={{ gridTemplateColumns: '4rem 5.5rem 3.5rem 1fr' }}
-          >
-            <span className="font-bold" style={{ color: band.color }}>{band.name}</span>
-            <span className="text-[#8b949e]">{band.freq.toFixed(2)}</span>
-            <span className="text-[#484f58]">{band.width}</span>
-            <span className="text-[#6e7681] leading-relaxed">
-              {band.signals.join(', ')}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      {/* Legenda systemów */}
-      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
-          Systemy nawigacyjne
-        </div>
-        <div className="space-y-2 text-xs">
-          {SYSTEMS.map(({ id, label }) => {
-            const sys   = GNSS_SYSTEMS[id];
-            const bands = FREQ_BANDS.filter(b => b.systems.includes(id));
-            return (
-              <div key={id} className="flex items-start gap-2">
-                <span className="font-bold w-8 flex-shrink-0" style={{ color: sys?.color }}>
-                  {label}
-                </span>
-                <span className="text-[#484f58]">
-                  {bands.map(b => b.name).join(' · ')}
+        <div className="space-y-0">
+          {FREQ_BANDS
+            .filter(b => b.systems.some(s => activeSystems.has(s)))
+            .map(band => (
+            <div
+              key={band.name}
+              className="py-2 border-b border-[#1c2333] last:border-0 flex items-start gap-3"
+              onMouseEnter={() => setHoveredBand(band.name)}
+              onMouseLeave={() => setHoveredBand(null)}
+              style={{ cursor: 'default' }}
+            >
+              <div className="w-12 flex-shrink-0">
+                <span
+                  className="text-xs font-bold px-1.5 py-0.5 rounded"
+                  style={{ backgroundColor: band.color + '20', color: band.color }}
+                >
+                  {band.name}
                 </span>
               </div>
-            );
-          })}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-[#8b949e] text-[11px]">{band.freq.toFixed(2)}</span>
+                  <span className="text-[#30363d] text-[10px]">±{(band.width / 2).toFixed(0)} MHz</span>
+                </div>
+                <div className="text-[10px] text-[#484f58] leading-relaxed truncate">
+                  {band.signals.join(' · ')}
+                </div>
+              </div>
+              <div className="flex gap-1 flex-shrink-0 flex-wrap justify-end">
+                {band.systems.filter(s => activeSystems.has(s)).map(s => (
+                  <span key={s}
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1"
+                    style={{ backgroundColor: GNSS_SYSTEMS[s]?.color }}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 

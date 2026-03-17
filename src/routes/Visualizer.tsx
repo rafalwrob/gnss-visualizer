@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { GlobeScene } from '../components/scene/GlobeScene';
 import { TimeControl } from '../components/panels/TimeControl';
 import { SystemPanel } from '../components/panels/SystemPanel';
@@ -97,6 +97,7 @@ const TAB_TITLES: Partial<Record<LeftTab, string>> = {
 
 export function Visualizer() {
   const { onlineMode, activeTab, setActiveTab, useEcef, setUseEcef } = useUiStore();
+  const [panelWide, setPanelWide] = useState(false);
   const { enabled: obsEnabled } = useObserverStore();
 
   // Gdy tryb widoczności włączony → auto-otwórz prawy panel z wynikami
@@ -197,17 +198,29 @@ export function Visualizer() {
 
       {/* ═══ PRAWA SZUFLADA — zawartość zakładki ═══ */}
       {activeTab && currentTitle && (
-        <div className="w-[400px] flex-shrink-0 flex flex-col border-l border-[#21262d] bg-[#0d1117]">
+        <div
+          className="flex-shrink-0 flex flex-col border-l border-[#21262d] bg-[#0d1117] transition-[width] duration-200"
+          style={{ width: panelWide ? 680 : 400 }}
+        >
 
           {/* Nagłówek panelu */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#21262d] flex-shrink-0">
             <div className="text-[#e6edf3] font-bold text-base font-mono">{currentTitle}</div>
-            <button
-              onClick={() => setActiveTab(null)}
-              className="w-7 h-7 flex items-center justify-center rounded-md text-[#6e7681] hover:text-[#e6edf3] hover:bg-[#21262d] transition-colors text-lg leading-none"
-            >
-              ✕
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPanelWide(w => !w)}
+                title={panelWide ? 'Zwęź panel' : 'Rozszerz panel'}
+                className="w-7 h-7 flex items-center justify-center rounded-md text-[#6e7681] hover:text-[#e6edf3] hover:bg-[#21262d] transition-colors text-sm"
+              >
+                {panelWide ? '⟩' : '⟨'}
+              </button>
+              <button
+                onClick={() => setActiveTab(null)}
+                className="w-7 h-7 flex items-center justify-center rounded-md text-[#6e7681] hover:text-[#e6edf3] hover:bg-[#21262d] transition-colors text-lg leading-none"
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           {/* Zawartość — przewijalna */}

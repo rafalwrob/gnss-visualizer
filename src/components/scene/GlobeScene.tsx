@@ -258,7 +258,7 @@ function SceneContent() {
 export function GlobeScene() {
   return (
     <Canvas
-      camera={{ position: [0, 0, 5.5], fov: 45 }}
+      camera={{ position: [0, 1.5, 9.5], fov: 50 }}
       style={{ background: '#050a14' }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       dpr={[1, 2]}

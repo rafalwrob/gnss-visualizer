@@ -101,7 +101,7 @@ export function VisibilityPanel() {
     }
 
     computeList();
-    intervalRef.current = setInterval(computeList, 2000);
+    intervalRef.current = setInterval(computeList, 250);
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [enabled, allSats, lat, lon, alt, minElevation, enabledSystems, useSGP4]);
 

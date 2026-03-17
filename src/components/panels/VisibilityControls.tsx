@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useObserverStore } from '../../store/observerStore';
 import { useTimeStore } from '../../store/timeStore';
+import { useUiStore } from '../../store/uiStore';
 import { fetchConstellation } from '../../services/api/celestrak';
 import { anim } from '../scene/animState';
 import type { GnssSystem } from '../../types/satellite';
@@ -26,6 +27,7 @@ export function VisibilityControls() {
   } = useObserverStore();
 
   const { animating, animSpeed, setAnimating, setAnimSpeed, setTimeHours } = useTimeStore();
+  const { showGroundTrack, setShowGroundTrack } = useUiStore();
 
   const [latInput, setLatInput] = useState(() => fmt(lat, 4));
   const [lonInput, setLonInput] = useState(() => fmt(lon, 4));
@@ -145,6 +147,20 @@ export function VisibilityControls() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Ślad orbity */}
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Wizualizacja orbit</div>
+        <label className="flex items-center justify-between cursor-pointer">
+          <span className="text-[#c9d1d9] text-xs font-mono">Ślad naziemny</span>
+          <div
+            onClick={() => setShowGroundTrack(!showGroundTrack)}
+            className={`w-8 h-4 rounded-full relative transition-colors cursor-pointer ${showGroundTrack ? 'bg-[#238636]' : 'bg-[#21262d]'}`}
+          >
+            <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${showGroundTrack ? 'translate-x-4' : 'translate-x-0.5'}`} />
+          </div>
+        </label>
       </div>
 
       {/* Maska elewacji */}
