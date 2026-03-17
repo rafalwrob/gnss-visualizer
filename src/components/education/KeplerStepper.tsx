@@ -16,7 +16,7 @@ const D = { bg: '#0d1117', grid: '#21262d', axis: '#30363d', dim: '#484f58', blu
 
 function DiagramStep1() {
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <line x1="20" y1="76" x2="180" y2="76" stroke={D.axis} strokeWidth="1.5" />
       <line x1="20" y1="66" x2="20" y2="86" stroke={D.dim} strokeWidth="1" />
@@ -38,7 +38,7 @@ function DiagramStep2() {
   const px = cx + r * Math.cos(-mDeg * DEG);
   const py = cy + r * Math.sin(-mDeg * DEG);
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <circle cx={cx} cy={cy} r={r} stroke={D.grid} fill="none" />
       <circle cx={cx} cy={cy} r="2" fill={D.dim} />
@@ -62,7 +62,7 @@ function DiagramStep3() {
   const px = cx + rx * Math.cos(-eDeg * DEG);
   const py = cy + ry * Math.sin(-eDeg * DEG);
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
       <circle cx={foci} cy={cy} r="2.5" fill={D.orange} />
@@ -88,7 +88,7 @@ function DiagramStep4() {
   const pnx = foci + 44 * Math.cos(-nuDeg * DEG);
   const pny = cy + 88 * Math.sin(-nuDeg * DEG);
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
       <circle cx={foci} cy={cy} r="2.5" fill={D.orange} />
@@ -116,7 +116,7 @@ function DiagramStep5() {
   const omegaP = { x: foci + 46 * Math.cos(-omegaDeg * DEG), y: cy + 92 * Math.sin(-omegaDeg * DEG) };
   const phiP = { x: foci + 42 * Math.cos(-phiDeg * DEG), y: cy + 84 * Math.sin(-phiDeg * DEG) };
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
       <circle cx={foci} cy={cy} r="2.5" fill={D.orange} />
@@ -142,7 +142,7 @@ function DiagramStep6() {
   const px = cx + rx * Math.cos(-uDeg * DEG) * 0.98;
   const py = cy + ry * Math.sin(-uDeg * DEG) * 0.98;
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
       <circle cx={foci} cy={cy} r="2.5" fill={D.orange} />
@@ -167,7 +167,7 @@ function DiagramStep7() {
   const px = cx + rx * Math.cos(-uDeg * DEG);
   const py = cy + ry * Math.sin(-uDeg * DEG);
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
       <line x1={cx - rx - 5} y1={cy} x2={cx + rx + 10} y2={cy} stroke={D.orange} strokeWidth="1" />
@@ -194,7 +194,7 @@ function DiagramStep8() {
   const ox = cx + r * Math.cos(omegaDeg * DEG);
   const oy = cy - r * Math.sin(omegaDeg * DEG);
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <ellipse cx={cx} cy={cy} rx={r} ry={r * 0.7} stroke={D.dim} fill="none" strokeDasharray="4,2" />
       <circle cx={cx} cy={cy} r={r} stroke={D.grid} fill="none" />
@@ -216,7 +216,7 @@ function DiagramStep8() {
 function DiagramStep9() {
   const cx = 75, cy = 90;
   return (
-    <svg viewBox="0 0 200 160" className="w-full" style={{ height: 160 }}>
+    <svg viewBox="0 0 200 160" className="w-full" style={{ width: "100%", height: "auto" }}>
       <rect width="200" height="160" fill={D.bg} rx="4" />
       <line x1={cx} y1={cy} x2={cx + 52} y2={cy} stroke={D.orange} strokeWidth="1.5" />
       <text x={cx + 55} y={cy + 8} fill={D.orange} fontSize="8" fontFamily="monospace" fontWeight="bold">X</text>

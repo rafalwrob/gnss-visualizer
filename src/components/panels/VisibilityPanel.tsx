@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useObserverStore } from '../../store/observerStore';
+import { useUiStore } from '../../store/uiStore';
 import { propagateSGP4 } from '../../services/api/celestrak';
 import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import { satElevAz, computeDOP, latLonAltToEcef } from '../../services/coordinates/ecefEnu';
@@ -41,6 +42,7 @@ export function VisibilityPanel() {
     enabled, lat, lon, alt, minElevation, allSats, systemStatus, fetchError,
     enabledSystems, toggleSystem,
   } = useObserverStore();
+  const { showGroundTrack, setShowGroundTrack } = useUiStore();
 
   const [visibleList, setVisibleList] = useState<VisibleSat[]>([]);
   const [useSGP4, setUseSGP4] = useState(false);
@@ -114,7 +116,7 @@ export function VisibilityPanel() {
       {/* Status pobierania */}
       {Object.keys(systemStatus).length > 0 && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-          <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Status pobierania</div>
+          <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">Status pobierania</div>
           <div className="grid grid-cols-3 gap-1.5">
             {SYSTEMS.map(sys => {
               const info = systemStatus[sys];
@@ -145,7 +147,7 @@ export function VisibilityPanel() {
       {/* Filtr konstelacji */}
       {enabled && allSats.length > 0 && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-          <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Konstelacje</div>
+          <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">Konstelacje</div>
           <div className="flex flex-wrap gap-1.5">
             {SYSTEMS.map(sys => {
               const info = GNSS_SYSTEMS[sys];
@@ -174,46 +176,57 @@ export function VisibilityPanel() {
       {enabled && (
         <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
-            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Widoczne satelity</div>
+            <div className="text-[#6e7681] text-xs uppercase tracking-widest">Widoczne satelity</div>
             <span className="text-xs text-[#3fb950] font-bold">{visibleList.length}</span>
           </div>
 
           {/* DOP */}
           {dop && (
             <div className="mb-3 p-2 bg-[#0d1117] rounded-lg border border-[#21262d]">
-              <div className="text-[9px] text-[#484f58] uppercase tracking-widest mb-1.5">DOP</div>
+              <div className="text-xs text-[#484f58] uppercase tracking-widest mb-1.5">DOP</div>
               <div className="grid grid-cols-4 gap-1 text-center">
                 <div>
-                  <div className="text-[9px] text-[#484f58]">PDOP</div>
-                  <div className="text-[11px] font-bold font-mono" style={{ color: dopColor(dop.pdop) }}>{dop.pdop.toFixed(1)}</div>
+                  <div className="text-xs text-[#484f58]">PDOP</div>
+                  <div className="text-sm font-bold font-mono" style={{ color: dopColor(dop.pdop) }}>{dop.pdop.toFixed(1)}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] text-[#484f58]">HDOP</div>
-                  <div className="text-[11px] font-mono text-[#8b949e]">{dop.hdop.toFixed(1)}</div>
+                  <div className="text-xs text-[#484f58]">HDOP</div>
+                  <div className="text-sm font-mono text-[#8b949e]">{dop.hdop.toFixed(1)}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] text-[#484f58]">VDOP</div>
-                  <div className="text-[11px] font-mono text-[#8b949e]">{dop.vdop.toFixed(1)}</div>
+                  <div className="text-xs text-[#484f58]">VDOP</div>
+                  <div className="text-sm font-mono text-[#8b949e]">{dop.vdop.toFixed(1)}</div>
                 </div>
                 <div>
-                  <div className="text-[9px] text-[#484f58]">GDOP</div>
-                  <div className="text-[11px] font-mono text-[#8b949e]">{dop.gdop.toFixed(1)}</div>
+                  <div className="text-xs text-[#484f58]">GDOP</div>
+                  <div className="text-sm font-mono text-[#8b949e]">{dop.gdop.toFixed(1)}</div>
                 </div>
               </div>
             </div>
           )}
 
+          {/* Ślad naziemny */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-sm text-[#8b949e]">Ślad naziemny orbit</span>
+            <div
+              onClick={() => setShowGroundTrack(!showGroundTrack)}
+              className={`w-9 h-5 rounded-full relative transition-colors cursor-pointer flex-shrink-0 ${showGroundTrack ? 'bg-[#238636]' : 'bg-[#21262d]'}`}
+            >
+              <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${showGroundTrack ? 'translate-x-4' : 'translate-x-0.5'}`} />
+            </div>
+          </div>
+
           {/* Propagator toggle */}
           {hasSGP4 && (
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[9px] text-[#484f58]">Propagator:</span>
+              <span className="text-xs text-[#484f58]">Propagator:</span>
               <button
                 onClick={() => setUseSGP4(false)}
-                className={`px-2 py-0.5 rounded text-[9px] font-mono border transition-colors ${!useSGP4 ? 'bg-[#1f6feb] border-[#388bfd] text-white' : 'bg-transparent border-[#30363d] text-[#484f58] hover:text-[#8b949e]'}`}
+                className={`px-2 py-0.5 rounded text-xs font-mono border transition-colors ${!useSGP4 ? 'bg-[#1f6feb] border-[#388bfd] text-white' : 'bg-transparent border-[#30363d] text-[#484f58] hover:text-[#8b949e]'}`}
               >Kepler</button>
               <button
                 onClick={() => setUseSGP4(true)}
-                className={`px-2 py-0.5 rounded text-[9px] font-mono border transition-colors ${useSGP4 ? 'bg-[#1f6feb] border-[#388bfd] text-white' : 'bg-transparent border-[#30363d] text-[#484f58] hover:text-[#8b949e]'}`}
+                className={`px-2 py-0.5 rounded text-xs font-mono border transition-colors ${useSGP4 ? 'bg-[#1f6feb] border-[#388bfd] text-white' : 'bg-transparent border-[#30363d] text-[#484f58] hover:text-[#8b949e]'}`}
               >SGP4</button>
             </div>
           )}
@@ -221,40 +234,36 @@ export function VisibilityPanel() {
           {visibleList.length === 0 ? (
             <div className="text-xs text-[#484f58]">Brak widocznych powyżej {minElevation}°</div>
           ) : (
-            <div className="space-y-1 max-h-80 overflow-y-auto">
+            <div className="space-y-0.5 max-h-96 overflow-y-auto">
               {/* Nagłówek */}
-              <div className="grid text-[9px] text-[#484f58] pb-1 border-b border-[#21262d]"
-                style={{ gridTemplateColumns: '2.8rem 1fr 2.8rem 2.8rem' }}>
+              <div className="grid text-xs text-[#484f58] pb-1 border-b border-[#21262d]"
+                style={{ gridTemplateColumns: '3.2rem 1fr 3rem 3rem' }}>
                 <span>PRN</span>
-                <span>Sys</span>
+                <span>System</span>
                 <span className="text-right">El°</span>
                 <span className="text-right">Az°</span>
               </div>
               {visibleList.map(s => (
-                <div key={s.prn} className="py-0.5 border-b border-[#21262d]">
-                  <div className="grid items-center text-xs"
-                    style={{ gridTemplateColumns: '2.8rem 1fr 2.8rem 2.8rem' }}>
+                <div key={s.prn} className="py-1 border-b border-[#1c2333]">
+                  <div className="grid items-center text-sm"
+                    style={{ gridTemplateColumns: '3.2rem 1fr 3rem 3rem' }}>
                     <span className="font-bold font-mono" style={{ color: s.color }}>{s.prn}</span>
-                    <span className="text-[10px] text-[#484f58]">{GNSS_SYSTEMS[s.system]?.name}</span>
-                    <span className="text-right text-[#e6edf3]">{s.el.toFixed(1)}°</span>
-                    <span className="text-right text-[#8b949e]">{s.az.toFixed(0)}°</span>
+                    <span className="text-xs text-[#6e7681]">{GNSS_SYSTEMS[s.system]?.name}</span>
+                    <span className="text-right text-[#e6edf3] font-mono">{s.el.toFixed(1)}°</span>
+                    <span className="text-right text-[#8b949e] font-mono">{s.az.toFixed(0)}°</span>
                   </div>
-                  <div className="flex gap-4 pl-1 text-[9px] mt-0.5">
-                    <span className="text-[#484f58]">
-                      ρ <span className="text-[#58a6ff]">{s.rho.toFixed(0)} km</span>
-                    </span>
-                    <span className="text-[#484f58]">
-                      Δf <span className={s.doppler >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
-                        {s.doppler >= 0 ? '+' : ''}{s.doppler.toFixed(0)} Hz
-                      </span>
-                    </span>
+                  <div className="flex gap-4 pl-0.5 text-xs mt-0.5 text-[#484f58]">
+                    <span>ρ <span className="text-[#58a6ff]">{s.rho.toFixed(0)} km</span></span>
+                    <span>Δf <span className={s.doppler >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
+                      {s.doppler >= 0 ? '+' : ''}{s.doppler.toFixed(0)} Hz
+                    </span></span>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          <div className="text-[10px] text-[#484f58] mt-3">
+          <div className="text-xs text-[#484f58] mt-3">
             {lat.toFixed(4)}°N · {lon.toFixed(4)}°E · {alt.toFixed(0)} m n.p.m.
           </div>
         </div>
