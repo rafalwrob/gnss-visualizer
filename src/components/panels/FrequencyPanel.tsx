@@ -16,7 +16,7 @@ const F_MIN = 1155, F_MAX = 1660; // MHz
 const F_RANGE = F_MAX - F_MIN;
 
 // Chart SVG dimensions
-const W = 360, H = 180;
+const W = 380, H = 240;
 const PAD = { t: 12, r: 8, b: 28, l: 8 };
 const IW = W - PAD.l - PAD.r;
 const IH = H - PAD.t - PAD.b;
@@ -79,7 +79,7 @@ export function FrequencyPanel() {
 
       {/* ── Filtr konstelacji ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Konstelacje</div>
+        <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">Konstelacje</div>
         <div className="flex gap-2 flex-wrap">
           {SYSTEMS.map(({ id, label, color }) => {
             const active = activeSystems.has(id);
@@ -102,7 +102,7 @@ export function FrequencyPanel() {
 
       {/* ── Spectrum ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
+        <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">
           Widmo PSD — sygnały GNSS
         </div>
 
@@ -145,7 +145,7 @@ export function FrequencyPanel() {
                   stroke={isMajor ? '#21262d' : '#161b22'} strokeWidth={isMajor ? 0.8 : 0.4} />
                 <text x={x} y={H - 6}
                   textAnchor="middle" fill={isMajor ? '#484f58' : '#2d333b'}
-                  fontSize={isMajor ? 7.5 : 6.5} fontFamily="monospace">
+                  fontSize={isMajor ? 9 : 8} fontFamily="monospace">
                   {f}
                 </text>
               </g>
@@ -182,7 +182,7 @@ export function FrequencyPanel() {
                 x={fx(band.freq)} y={peakY}
                 textAnchor="middle"
                 fill={band.color}
-                fontSize={isHovered ? 9 : 8}
+                fontSize={isHovered ? 10 : 9}
                 fontFamily="monospace"
                 fontWeight={isHovered ? 'bold' : 'normal'}
                 opacity={isHovered ? 1 : 0.7}
@@ -200,7 +200,7 @@ export function FrequencyPanel() {
           {/* Podpis osi */}
           <text x={W / 2} y={H - 1}
             textAnchor="middle" fill="#484f58"
-            fontSize={7.5} fontFamily="monospace">
+            fontSize={9} fontFamily="monospace">
             MHz
           </text>
         </svg>
@@ -219,18 +219,18 @@ export function FrequencyPanel() {
               <div className="flex flex-wrap gap-1.5">
                 {hoveredInfo.systems.map(s => (
                   <span key={s}
-                    className="px-2 py-0.5 rounded text-[10px] font-bold"
+                    className="px-2 py-0.5 rounded text-xs font-bold"
                     style={{ backgroundColor: GNSS_SYSTEMS[s]?.color + '22', color: GNSS_SYSTEMS[s]?.color }}>
                     {s.toUpperCase()}
                   </span>
                 ))}
-                <span className="text-[#6e7681] text-[10px] self-center ml-1">
+                <span className="text-[#6e7681] text-xs self-center ml-1">
                   {hoveredInfo.signals.join(' · ')}
                 </span>
               </div>
             </div>
           ) : (
-            <div className="mt-3 text-[10px] text-[#30363d] text-center py-2">
+            <div className="mt-3 text-xs text-[#30363d] text-center py-2">
               Najedź na pasmo aby zobaczyć szczegóły
             </div>
           )}
@@ -239,7 +239,7 @@ export function FrequencyPanel() {
 
       {/* ── Tabela pasm ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
+        <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">
           Szczegóły pasm
         </div>
         <div className="space-y-0">
@@ -263,10 +263,10 @@ export function FrequencyPanel() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[#8b949e] text-[11px]">{band.freq.toFixed(2)}</span>
-                  <span className="text-[#30363d] text-[10px]">±{(band.width / 2).toFixed(0)} MHz</span>
+                  <span className="text-[#8b949e] text-xs">{band.freq.toFixed(2)}</span>
+                  <span className="text-[#30363d] text-xs">±{(band.width / 2).toFixed(0)} MHz</span>
                 </div>
-                <div className="text-[10px] text-[#484f58] leading-relaxed truncate">
+                <div className="text-xs text-[#484f58] leading-relaxed truncate">
                   {band.signals.join(' · ')}
                 </div>
               </div>

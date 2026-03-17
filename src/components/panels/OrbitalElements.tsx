@@ -34,7 +34,7 @@ function SliderRow({
     <div className="mb-3">
       <div className="flex justify-between mb-1">
         <div className="flex items-center gap-1">
-          <span className="text-[#8b949e] text-[11px] font-mono">{label}</span>
+          <span className="text-[#8b949e] text-xs font-mono">{label}</span>
           {description && (
             <button
               onClick={onToggleDesc}
@@ -56,7 +56,7 @@ function SliderRow({
       />
       {description && (
         <div style={{ maxHeight: descOpen ? '96px' : '0', overflow: 'hidden', transition: 'max-height 0.2s ease-out' }}>
-          <div className="text-[10px] text-[#6e7681] mt-1.5 leading-relaxed">{description}</div>
+          <div className="text-xs text-[#6e7681] mt-1.5 leading-relaxed">{description}</div>
         </div>
       )}
     </div>
@@ -76,9 +76,9 @@ function SmallToggle({ value, onChange }: { value: boolean; onChange: (v: boolea
 
 // ── AlmanachChart ─────────────────────────────────────────────────────────────
 
-const PAD = { t: 8, r: 8, b: 20, l: 38 };
-const CHART_W = 220;
-const CHART_H = 80;
+const PAD = { t: 14, r: 14, b: 32, l: 52 };
+const CHART_W = 320;
+const CHART_H = 140;
 const INNER_W = CHART_W - PAD.l - PAD.r;
 const INNER_H = CHART_H - PAD.t - PAD.b;
 const SVG_W_A = CHART_W + 2;
@@ -126,10 +126,10 @@ function AlmanachChart({
 
   return (
     <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-      <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-2">
-        ΔR: Efemerys vs Almanach
+      <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-2">
+        ΔR: Ephemeris vs Almanach
       </div>
-      <p className="text-[10px] text-[#6e7681] leading-relaxed mb-2">
+      <p className="text-xs text-[#6e7681] leading-relaxed mb-2">
         ΔR = różnica pozycji: efemerys (z korekcjami J₂/harmonicznymi) vs almanach
         (tylko orbita Keplera). Większe ΔR = almanach jest mniej dokładny.
       </p>
@@ -150,10 +150,10 @@ function AlmanachChart({
           return (
             <g key={mark}>
               <line x1={PAD.l} y1={y} x2={PAD.l + INNER_W} y2={y} stroke="#21262d" strokeWidth="0.5" strokeDasharray="3,3" />
-              <text x={PAD.l - 3} y={y + 3} textAnchor="end" fill="#484f58" fontSize="7" fontFamily="monospace">
+              <text x={PAD.l - 3} y={y + 3} textAnchor="end" fill="#484f58" fontSize="9" fontFamily="monospace">
                 {mark}
               </text>
-              <text x={PAD.l + INNER_W} y={y - 2} textAnchor="end" fill="#30363d" fontSize="6" fontFamily="monospace">
+              <text x={PAD.l + INNER_W} y={y - 2} textAnchor="end" fill="#30363d" fontSize="8" fontFamily="monospace">
                 {label}
               </text>
             </g>
@@ -161,7 +161,7 @@ function AlmanachChart({
         })}
 
         {/* oś Y — max */}
-        <text x={PAD.l - 3} y={PAD.t + 4} textAnchor="end" fill="#484f58" fontSize="7" fontFamily="monospace">
+        <text x={PAD.l - 3} y={PAD.t + 4} textAnchor="end" fill="#484f58" fontSize="9" fontFamily="monospace">
           {yMax}
         </text>
 
@@ -169,7 +169,7 @@ function AlmanachChart({
         {[0, Math.round(periodH / 2), Math.round(periodH)].map(h => {
           const x = PAD.l + (h / periodH) * INNER_W;
           return (
-            <text key={h} x={x} y={CHART_H - 4} textAnchor="middle" fill="#484f58" fontSize="7" fontFamily="monospace">
+            <text key={h} x={x} y={CHART_H - 4} textAnchor="middle" fill="#484f58" fontSize="9" fontFamily="monospace">
               {h}h
             </text>
           );
@@ -190,7 +190,7 @@ function AlmanachChart({
 
         {/* Marker "teraz" */}
         <line x1={nowX} y1={PAD.t} x2={nowX} y2={PAD.t + INNER_H} stroke="#58a6ff" strokeWidth="1" strokeOpacity="0.7" />
-        <text x={nowX + 2} y={PAD.t + 6} fill="#58a6ff" fontSize="6" fontFamily="monospace">now</text>
+        <text x={nowX + 2} y={PAD.t + 6} fill="#58a6ff" fontSize="8" fontFamily="monospace">now</text>
 
         {/* Hover: linia + punkt + tooltip */}
         {hover && (
@@ -203,7 +203,7 @@ function AlmanachChart({
               width={60} height={16}
               fill="#161b22" stroke="#30363d" strokeWidth="0.5" rx="2"
             />
-            <text x={hoverX + 8} y={hoverY - 5} fill="#c9d1d9" fontSize="7" fontFamily="monospace">
+            <text x={hoverX + 8} y={hoverY - 5} fill="#c9d1d9" fontSize="9" fontFamily="monospace">
               {`t=${hover.tH.toFixed(1)}h ΔR=${hover.dr.toFixed(0)}m`}
             </text>
           </g>
@@ -219,7 +219,7 @@ function AlmanachChart({
       </svg>
 
       {/* Statystyki */}
-      <div className="flex justify-between mt-1.5 text-[10px] font-mono">
+      <div className="flex justify-between mt-1.5 text-xs font-mono">
         <span>
           <span className="text-[#484f58]">max </span>
           <span style={{ color: segColor(maxDr) }} className="font-bold">{maxDr.toFixed(0)} m</span>
@@ -233,11 +233,11 @@ function AlmanachChart({
 
       {/* Sekcja "Co to jest?" */}
       <details className="mt-2">
-        <summary className="text-[10px] text-[#6e7681] cursor-pointer hover:text-[#8b949e] select-none">
+        <summary className="text-xs text-[#6e7681] cursor-pointer hover:text-[#8b949e] select-none">
           Co to jest?
         </summary>
-        <div className="mt-1.5 text-[10px] text-[#6e7681] leading-relaxed space-y-1">
-          <p><span className="text-[#8b949e]">Efemerys:</span> nadawany co ~2h, ważny ~4h. Zawiera korekcje harmoniczne (J₂, rezonanse).</p>
+        <div className="mt-1.5 text-xs text-[#6e7681] leading-relaxed space-y-1">
+          <p><span className="text-[#8b949e]">Ephemeris:</span> nadawany co ~2h, ważny ~4h. Zawiera korekcje harmoniczne (J₂, rezonanse).</p>
           <p><span className="text-[#8b949e]">Almanach:</span> grubsza wersja, ważna ~tygodnie. Używana do pierwszego przybliżenia orbit.</p>
           <p><span className="text-[#3fb950]">150m:</span> typowy błąd GPS gdy używa się almanaczu zamiast efemerydy po ~kilku godzinach.</p>
         </div>
@@ -248,10 +248,10 @@ function AlmanachChart({
 
 // ── PerturbationImpactChart ───────────────────────────────────────────────────
 
-const POLAR_SIZE = 200;
-const POLAR_CX = 100, POLAR_CY = 100;
-const POLAR_R = 60;
-const POLAR_SCALE = 200; // ±200m → ±15px
+const POLAR_SIZE = 260;
+const POLAR_CX = 130, POLAR_CY = 130;
+const POLAR_R = 80;
+const POLAR_SCALE = 200; // ±200m → ±20px
 
 interface PerturbProps {
   Crc: number; Crs: number;
@@ -274,7 +274,7 @@ function PerturbationImpactChart({ Crc, Crs, Cuc, Cus, Cic, Cis, a, i0 }: Pertur
 
     function toPath(vals: number[]): string {
       return vals.map((v, i) => {
-        const r = POLAR_R + Math.max(-POLAR_R * 0.9, Math.min(POLAR_R * 0.9, (v / POLAR_SCALE) * 15));
+        const r = POLAR_R + Math.max(-POLAR_R * 0.9, Math.min(POLAR_R * 0.9, (v / POLAR_SCALE) * 20));
         const x = POLAR_CX + r * Math.cos(pts[i].phi - Math.PI / 2);
         const y = POLAR_CY + r * Math.sin(pts[i].phi - Math.PI / 2);
         return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
@@ -290,7 +290,7 @@ function PerturbationImpactChart({ Crc, Crs, Cuc, Cus, Cic, Cis, a, i0 }: Pertur
 
   return (
     <div className="mt-3">
-      <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-2">
+      <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-2">
         Wykres perturbacji [m vs φ]
       </div>
       <div className="flex items-start gap-3">
@@ -304,18 +304,18 @@ function PerturbationImpactChart({ Crc, Crs, Cuc, Cus, Cic, Cis, a, i0 }: Pertur
           <line x1={POLAR_CX} y1={POLAR_CY - POLAR_R - 12} x2={POLAR_CX} y2={POLAR_CY + POLAR_R + 12} stroke="#21262d" strokeWidth="0.5" />
           <line x1={POLAR_CX - POLAR_R - 12} y1={POLAR_CY} x2={POLAR_CX + POLAR_R + 12} y2={POLAR_CY} stroke="#21262d" strokeWidth="0.5" />
           {/* Etykieta φ=0° */}
-          <text x={POLAR_CX + 3} y={POLAR_CY - POLAR_R - 4} fill="#484f58" fontSize="7" fontFamily="monospace">φ=0°</text>
+          <text x={POLAR_CX + 3} y={POLAR_CY - POLAR_R - 4} fill="#484f58" fontSize="10" fontFamily="monospace">φ=0°</text>
           {/* Krzywe perturbacji */}
           <path d={paths.dr} stroke="#3fb950" fill="none" strokeWidth="1.5" />
           <path d={paths.du} stroke="#f0883e" fill="none" strokeWidth="1.5" />
           <path d={paths.di} stroke="#a371f7" fill="none" strokeWidth="1.5" />
         </svg>
-        <div className="text-[10px] font-mono space-y-2">
+        <div className="text-xs font-mono space-y-2">
           <div><span style={{ color: '#3fb950' }}>■</span> <span className="text-[#6e7681]">Δr (promień)</span></div>
           <div><span style={{ color: '#f0883e' }}>■</span> <span className="text-[#6e7681]">Δu (arg. szer.)</span></div>
           <div><span style={{ color: '#a371f7' }}>■</span> <span className="text-[#6e7681]">Δi (inklinacja)</span></div>
-          <div className="text-[9px] text-[#484f58] leading-relaxed mt-2">
-            Odchylenie od koła = amplituda perturbacji. Skala: ±200m→±{(15).toFixed(0)}px
+          <div className="text-xs text-[#484f58] leading-relaxed mt-2">
+            Odchylenie od koła = amplituda perturbacji. Skala: ±200m→±{(20).toFixed(0)}px
           </div>
         </div>
       </div>
@@ -405,7 +405,7 @@ export function OrbitalElements() {
 
       {/* ── Tryb efemerydy ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Tryb efemerydy</div>
+        <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">Tryb efemerydy</div>
         <div className="flex gap-2 mb-3">
           {([false, true] as const).map(isEph => (
             <button
@@ -433,7 +433,7 @@ export function OrbitalElements() {
 
         {/* ΔR wskaźnik */}
         <div className="mt-3">
-          <div className="flex justify-between text-[11px] mb-1">
+          <div className="flex justify-between text-xs mb-1">
             <span className="text-[#6e7681]">Korekcja J₂: ΔR</span>
             <span className="text-[#58a6ff] font-bold font-mono">{deltaM.toFixed(0)} m</span>
           </div>
@@ -448,7 +448,7 @@ export function OrbitalElements() {
 
       {/* ── Elementy orbitalne ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
+        <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">
           Elementy orbitalne
         </div>
         <SliderRow
@@ -465,7 +465,7 @@ export function OrbitalElements() {
           displayValue={singleEph.e.toFixed(4)}
           min={0} max={0.3} step={0.0001}
           onChange={v => update('e', v)}
-          color="#7ee787"
+          color="#58a6ff"
         />
         <SliderRow
           label="Inklinacja  i₀"
@@ -473,7 +473,7 @@ export function OrbitalElements() {
           displayValue={`${(singleEph.i0 / DEG).toFixed(1)}°`}
           min={0} max={90} step={0.1}
           onChange={v => update('i0', v * DEG)}
-          color="#f0883e"
+          color="#58a6ff"
         />
         <SliderRow
           label="RAAN  Ω₀"
@@ -481,7 +481,7 @@ export function OrbitalElements() {
           displayValue={`${(singleEph.Omega0 / DEG).toFixed(1)}°`}
           min={-180} max={180} step={1}
           onChange={v => update('Omega0', v * DEG)}
-          color="#a371f7"
+          color="#58a6ff"
         />
         <SliderRow
           label="Arg. perygeum  ω"
@@ -489,7 +489,7 @@ export function OrbitalElements() {
           displayValue={`${(singleEph.omega / DEG).toFixed(1)}°`}
           min={-180} max={180} step={1}
           onChange={v => update('omega', v * DEG)}
-          color="#ffa657"
+          color="#58a6ff"
         />
         <SliderRow
           label="Anomalia średnia  M₀"
@@ -497,20 +497,20 @@ export function OrbitalElements() {
           displayValue={`${(singleEph.M0 / DEG).toFixed(1)}°`}
           min={-180} max={180} step={1}
           onChange={v => update('M0', v * DEG)}
-          color="#ff7b72"
+          color="#58a6ff"
         />
 
         {showHarmonics && (
           <>
             <div className="border-t border-[#21262d] my-3" />
-            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Dryft orbitalny</div>
+            <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">Dryft orbitalny</div>
             <SliderRow
               label="Dryft RAAN  dΩ/dt"
               value={singleEph.OmegaDot * 1e9}
               displayValue={`${(singleEph.OmegaDot * 1e9).toFixed(2)} nrad/s`}
               min={-20} max={0} step={0.01}
               onChange={v => update('OmegaDot', v * 1e-9)}
-              color="#c9d1d9"
+              color="#58a6ff"
               description={DESCRIPTIONS.OmegaDot}
               descOpen={openDesc === 'OmegaDot'}
               onToggleDesc={() => toggleDesc('OmegaDot')}
@@ -521,7 +521,7 @@ export function OrbitalElements() {
               displayValue={`${(singleEph.dn * 1e9).toFixed(2)} nrad/s`}
               min={-20} max={20} step={0.01}
               onChange={v => update('dn', v * 1e-9)}
-              color="#c9d1d9"
+              color="#58a6ff"
               description={DESCRIPTIONS.dn}
               descOpen={openDesc === 'dn'}
               onToggleDesc={() => toggleDesc('dn')}
@@ -532,21 +532,21 @@ export function OrbitalElements() {
               displayValue={`${(singleEph.IDOT * 1e12).toFixed(1)} prad/s`}
               min={-500} max={500} step={0.1}
               onChange={v => update('IDOT', v * 1e-12)}
-              color="#c9d1d9"
+              color="#58a6ff"
               description={DESCRIPTIONS.IDOT}
               descOpen={openDesc === 'IDOT'}
               onToggleDesc={() => toggleDesc('IDOT')}
             />
 
             <div className="border-t border-[#21262d] my-3" />
-            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Perturbacje sferyczne</div>
+            <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">Perturbacje sferyczne</div>
             <SliderRow
               label="Crc (promień cos)"
               value={singleEph.Crc}
               displayValue={`${singleEph.Crc.toFixed(1)} m`}
               min={-200} max={200} step={0.1}
               onChange={v => update('Crc', v)}
-              color="#7ee787"
+              color="#58a6ff"
               description={DESCRIPTIONS.Crc}
               descOpen={openDesc === 'Crc'}
               onToggleDesc={() => toggleDesc('Crc')}
@@ -557,7 +557,7 @@ export function OrbitalElements() {
               displayValue={`${singleEph.Crs.toFixed(1)} m`}
               min={-200} max={200} step={0.1}
               onChange={v => update('Crs', v)}
-              color="#7ee787"
+              color="#58a6ff"
               description={DESCRIPTIONS.Crs}
               descOpen={openDesc === 'Crs'}
               onToggleDesc={() => toggleDesc('Crs')}
@@ -568,7 +568,7 @@ export function OrbitalElements() {
               displayValue={`${(singleEph.Cuc * 1e6).toFixed(3)} μrad`}
               min={-10} max={10} step={0.001}
               onChange={v => update('Cuc', v * 1e-6)}
-              color="#f0883e"
+              color="#58a6ff"
               description={DESCRIPTIONS.Cuc}
               descOpen={openDesc === 'Cuc'}
               onToggleDesc={() => toggleDesc('Cuc')}
@@ -579,7 +579,7 @@ export function OrbitalElements() {
               displayValue={`${(singleEph.Cus * 1e6).toFixed(3)} μrad`}
               min={-10} max={10} step={0.001}
               onChange={v => update('Cus', v * 1e-6)}
-              color="#f0883e"
+              color="#58a6ff"
               description={DESCRIPTIONS.Cus}
               descOpen={openDesc === 'Cus'}
               onToggleDesc={() => toggleDesc('Cus')}
@@ -590,7 +590,7 @@ export function OrbitalElements() {
               displayValue={`${(singleEph.Cic * 1e6).toFixed(3)} μrad`}
               min={-1} max={1} step={0.0001}
               onChange={v => update('Cic', v * 1e-6)}
-              color="#a371f7"
+              color="#58a6ff"
               description={DESCRIPTIONS.Cic}
               descOpen={openDesc === 'Cic'}
               onToggleDesc={() => toggleDesc('Cic')}
@@ -601,7 +601,7 @@ export function OrbitalElements() {
               displayValue={`${(singleEph.Cis * 1e6).toFixed(3)} μrad`}
               min={-1} max={1} step={0.0001}
               onChange={v => update('Cis', v * 1e-6)}
-              color="#a371f7"
+              color="#58a6ff"
               description={DESCRIPTIONS.Cis}
               descOpen={openDesc === 'Cis'}
               onToggleDesc={() => toggleDesc('Cis')}
@@ -615,7 +615,7 @@ export function OrbitalElements() {
             />
 
             <div className="border-t border-[#21262d] my-3" />
-            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Epoka</div>
+            <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">Epoka</div>
             <SliderRow
               label="t₀e (epoka efemerydy)"
               value={singleEph.toe / 3600}
@@ -638,7 +638,7 @@ export function OrbitalElements() {
       {/* ── Jonosfera Klobuchar ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Jonosfera Klobuchar</div>
+          <div className="text-[#6e7681] text-xs uppercase tracking-widest">Jonosfera Klobuchar</div>
           <SmallToggle value={enabled} onChange={setEnabled} />
         </div>
 
@@ -648,7 +648,7 @@ export function OrbitalElements() {
             <div className="bg-[#0d1117] rounded-lg p-3 mb-3 text-center">
               <div className="text-[#6e7681] text-[10px] mb-1">Opóźnienie L1 (zenit)</div>
               <div className="text-[#a371f7] text-lg font-bold font-mono">{zenithDelay.toFixed(1)} m</div>
-              <div className="grid grid-cols-5 gap-1 mt-2 text-[10px]">
+              <div className="grid grid-cols-5 gap-1 mt-2 text-xs">
                 {[5, 15, 30, 60, 90].map(el => (
                   <div key={el}>
                     <div className="text-[#484f58]">{el}°</div>
@@ -659,7 +659,7 @@ export function OrbitalElements() {
             </div>
 
             {/* Parametry α */}
-            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-2">α (amplituda)</div>
+            <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-2">α (amplituda)</div>
             {([0, 1, 2, 3] as const).map(i => (
               <SliderRow
                 key={`a${i}`}
@@ -668,12 +668,12 @@ export function OrbitalElements() {
                 min={-1.2e-7} max={1.2e-7} step={1e-9}
                 displayValue={`${(alpha[i] * 1e9).toFixed(1)} ns`}
                 onChange={v => setAlpha(i, v)}
-                color="#a371f7"
+                color="#58a6ff"
               />
             ))}
 
             {/* Parametry β */}
-            <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-2 mt-3">β (okres)</div>
+            <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-2 mt-3">β (okres)</div>
             {([0, 1, 2, 3] as const).map(i => (
               <SliderRow
                 key={`b${i}`}

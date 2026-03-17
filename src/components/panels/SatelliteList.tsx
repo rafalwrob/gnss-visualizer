@@ -61,8 +61,8 @@ function SatelliteDetails({ idx }: { idx: number }) {
       {/* Nagłówek satelity */}
       <div className="flex items-center gap-2">
         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sat.color }} />
-        <span className="text-[13px] text-[#e6edf3] font-bold font-mono">{sat.prn}</span>
-        {db && <span className="text-[11px] text-[#8b949e] font-mono">{db.name}</span>}
+        <span className="text-sm text-[#e6edf3] font-bold font-mono">{sat.prn}</span>
+        {db && <span className="text-xs text-[#8b949e] font-mono">{db.name}</span>}
         <div className="ml-auto flex gap-1">
           <span className="px-1.5 py-0.5 rounded text-[8px] font-bold font-mono"
             style={{ backgroundColor: sat.color + '25', color: sat.color, border: `1px solid ${sat.color}50` }}>
@@ -79,17 +79,17 @@ function SatelliteDetails({ idx }: { idx: number }) {
         <button
           onClick={() => selectedIndex > 0 && selectSatellite(selectedIndex - 1)}
           disabled={selectedIndex === 0}
-          className="flex-1 py-1 rounded text-[10px] bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-30 border border-[#30363d] font-mono"
+          className="flex-1 py-1 rounded text-xs bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-30 border border-[#30363d] font-mono"
         >
           ← Poprz.
         </button>
-        <span className="text-[#484f58] text-[10px] self-center px-2 font-mono">
+        <span className="text-[#484f58] text-xs self-center px-2 font-mono">
           {selectedIndex + 1}/{satellites.length}
         </span>
         <button
           onClick={() => selectedIndex < satellites.length - 1 && selectSatellite(selectedIndex + 1)}
           disabled={selectedIndex >= satellites.length - 1}
-          className="flex-1 py-1 rounded text-[10px] bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-30 border border-[#30363d] font-mono"
+          className="flex-1 py-1 rounded text-xs bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-30 border border-[#30363d] font-mono"
         >
           Nast. →
         </button>
@@ -97,13 +97,13 @@ function SatelliteDetails({ idx }: { idx: number }) {
 
       {/* Elementy orbitalne */}
       <div>
-        <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-1.5 font-mono">Elementy orbitalne</div>
+        <div className="text-[#8b949e] text-xs uppercase tracking-wider mb-1.5 font-mono">Elementy orbitalne</div>
         <table className="w-full font-mono">
           <tbody>
             {orbital.map(([sym, val]) => (
               <tr key={sym}>
-                <td className="text-[10px] font-bold text-[#58a6ff] pr-3 py-0.5 w-8">{sym}</td>
-                <td className="text-[10px] text-[#e6edf3] py-0.5">{val}</td>
+                <td className="text-xs font-bold text-[#58a6ff] pr-3 py-0.5 w-8">{sym}</td>
+                <td className="text-xs text-[#e6edf3] py-0.5">{val}</td>
               </tr>
             ))}
           </tbody>
@@ -113,8 +113,8 @@ function SatelliteDetails({ idx }: { idx: number }) {
       {/* Info z bazy danych */}
       {db && (
         <div className="border-t border-[#21262d] pt-2">
-          <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-1.5 font-mono">Info</div>
-          <div className="space-y-0.5 text-[9px] font-mono">
+          <div className="text-[#8b949e] text-xs uppercase tracking-wider mb-1.5 font-mono">Info</div>
+          <div className="space-y-0.5 text-xs font-mono">
             <div className="flex justify-between">
               <span className="text-[#8b949e]">NORAD</span>
               <span className="text-[#e6edf3]">{db.norad}</span>
@@ -140,10 +140,10 @@ function SatelliteDetails({ idx }: { idx: number }) {
         <div className="border-t border-[#21262d] pt-2">
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse" />
-            <span className="text-[#3fb950] text-[9px] uppercase tracking-wider font-mono">Live</span>
+            <span className="text-[#3fb950] text-xs uppercase tracking-wider font-mono">Live</span>
           </div>
           {liveDat ? (
-            <div className="space-y-0.5 text-[9px] font-mono">
+            <div className="space-y-0.5 text-xs font-mono">
               <div className="flex justify-between">
                 <span className="text-[#8b949e]">Elewacja</span>
                 <span className={liveDat.el >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
@@ -164,7 +164,7 @@ function SatelliteDetails({ idx }: { idx: number }) {
               </div>
             </div>
           ) : (
-            <div className="text-[9px] text-[#484f58] font-mono">Obliczanie…</div>
+            <div className="text-xs text-[#484f58] font-mono">Obliczanie…</div>
           )}
         </div>
       )}
@@ -203,7 +203,7 @@ export function SatelliteList() {
   if (mode === 'single') {
     return (
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 font-mono">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">
+        <div className="text-[#6e7681] text-xs uppercase tracking-widest mb-3">
           RINEX / Plik nawigacyjny
         </div>
         <input ref={fileRef} type="file" accept=".n,.rnx,.nav,.22n,.23n,.21n,.20n" className="hidden" onChange={handleFile} />
@@ -220,14 +220,14 @@ export function SatelliteList() {
   return (
     <div className="bg-[#161b22] border border-[#30363d] rounded-xl font-mono">
       <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#30363d]">
-        <span className="text-[#6e7681] text-[10px] uppercase tracking-widest">
+        <span className="text-[#6e7681] text-xs uppercase tracking-widest">
           Satelity ({satellites.length})
         </span>
         <div className="flex gap-1">
           <input ref={fileRef} type="file" accept=".n,.rnx,.nav,.22n,.23n,.21n,.20n" className="hidden" onChange={handleFile} />
           <button
             onClick={() => fileRef.current?.click()}
-            className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[11px]"
+            className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-xs"
           >
             + RINEX
           </button>
@@ -252,7 +252,7 @@ export function SatelliteList() {
               <span className="flex-1 truncate text-xs text-[#e6edf3]">
                 {db ? `${sat.prn} · ${db.name}` : sat.prn}
               </span>
-              <span className="text-[11px] text-[#6e7681] flex-shrink-0">Ω={raan}°</span>
+              <span className="text-xs text-[#6e7681] flex-shrink-0">Ω={raan}°</span>
             </div>
           );
         })}

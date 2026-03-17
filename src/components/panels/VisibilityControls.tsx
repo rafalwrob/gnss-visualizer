@@ -28,10 +28,10 @@ export function VisibilityControls() {
   const {
     enabled, lat, lon, alt, minElevation,
     setEnabled, setLat, setLon, setAlt, setMinElevation,
-    setAllSats, setSystemStatus, setFetchError, reset,
+    setAllSats, setSystemStatus, setFetchError, setIsFetching, reset,
   } = useObserverStore();
 
-  const { animating, animSpeed, setAnimating, setAnimSpeed, setTimeHours } = useTimeStore();
+  const { animating, animSpeed, traceHours, setAnimating, setAnimSpeed, setTimeHours, setTraceHours } = useTimeStore();
   const { showGroundTrack, setShowGroundTrack } = useUiStore();
 
   const [latInput, setLatInput] = useState(() => fmt(lat, 4));
@@ -51,7 +51,7 @@ export function VisibilityControls() {
     const parsedLon = parseFloat(lonInput);
     const parsedAlt = parseFloat(altInput) || 0;
     if (isNaN(parsedLat) || isNaN(parsedLon)) { setFetchError('Nieprawidłowe współrzędne'); return; }
-    reset(); setFetching(true); setFetchError(''); setEnabled(false);
+    setIsFetching(true); reset(); setFetching(true); setFetchError(''); setEnabled(false);
     SYSTEMS.forEach(sys => setSystemStatus(sys, { status: 'loading', count: 0 }));
     const results = await Promise.all(SYSTEMS.map(async (sys) => {
       try {
@@ -61,7 +61,7 @@ export function VisibilityControls() {
       } catch { setSystemStatus(sys, { status: 'error', count: 0 }); return []; }
     }));
     setAllSats(results.flat()); setLat(parsedLat); setLon(parsedLon); setAlt(parsedAlt);
-    setFetching(false); setEnabled(true);
+    setFetching(false); setEnabled(true); setIsFetching(false);
   }
 
   function applyDateTime() {
@@ -126,6 +126,22 @@ export function VisibilityControls() {
         <div className="flex items-center justify-between">
           <span className="text-sm text-[#c9d1d9]">Ślad naziemny orbit</span>
           <MiniToggle value={showGroundTrack} onChange={() => setShowGroundTrack(!showGroundTrack)} />
+        </div>
+      </div>
+
+      {/* Suwak długości śladu orbity */}
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs text-[#6e7681] uppercase tracking-widest">Ślad orbity</span>
+          <span className="text-sm text-[#58a6ff] font-bold">{traceHours}h</span>
+        </div>
+        <input
+          type="range" min={0.5} max={12} step={0.5} value={traceHours}
+          onChange={e => setTraceHours(parseFloat(e.target.value))}
+          className="w-full accent-blue-500"
+        />
+        <div className="flex justify-between text-xs text-[#484f58] mt-1">
+          <span>0.5h</span><span>3h</span><span>6h</span><span>12h</span>
         </div>
       </div>
 

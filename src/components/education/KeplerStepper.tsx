@@ -392,7 +392,7 @@ export function KeplerStepper() {
   const animName = slideDir.current > 0 ? 'stepSlideR' : 'stepSlideL';
 
   return (
-    <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 font-mono text-xs">
+    <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 font-mono text-xs overflow-y-visible">
       <style>{SLIDE_STYLE}</style>
       <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Kalkulator orbitalny</div>
 
@@ -433,7 +433,7 @@ export function KeplerStepper() {
       {/* Treść + diagram z animacją przejścia */}
       <div
         key={step}
-        style={{ animation: `${animName} 0.3s ease-out` }}
+        style={{ animation: `${animName} 0.3s ease-out`, overflow: 'visible' }}
       >
         {/* Diagram */}
         <div className="mb-3 rounded-lg overflow-hidden">

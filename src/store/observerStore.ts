@@ -17,6 +17,8 @@ function allEnabled(): Record<GnssSystem, boolean> {
 interface ObserverState {
   /** Czy tryb widoczności jest aktywny */
   enabled: boolean;
+  /** Czy trwa pobieranie danych */
+  isFetching: boolean;
   lat: number;
   lon: number;
   /** Wysokość nad elipsoidą WGS-84 [m] */
@@ -34,6 +36,7 @@ interface ObserverState {
   fetchError: string;
 
   setEnabled: (v: boolean) => void;
+  setIsFetching: (v: boolean) => void;
   setLat: (v: number) => void;
   setLon: (v: number) => void;
   setAlt: (v: number) => void;
@@ -47,6 +50,7 @@ interface ObserverState {
 
 export const useObserverStore = create<ObserverState>((set) => ({
   enabled: false,
+  isFetching: false,
   lat: 52.2297,
   lon: 21.0122,
   alt: 100,
@@ -59,6 +63,7 @@ export const useObserverStore = create<ObserverState>((set) => ({
   fetchError: '',
 
   setEnabled: (v) => set({ enabled: v }),
+  setIsFetching: (v) => set({ isFetching: v }),
   setLat: (v) => set({ lat: v }),
   setLon: (v) => set({ lon: v }),
   setAlt: (v) => set({ alt: v }),

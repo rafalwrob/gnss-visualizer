@@ -98,16 +98,16 @@ const TAB_TITLES: Partial<Record<LeftTab, string>> = {
 export function Visualizer() {
   const { onlineMode, activeTab, setActiveTab, useEcef, setUseEcef } = useUiStore();
   const [panelWide, setPanelWide] = useState(false);
-  const { enabled: obsEnabled } = useObserverStore();
+  const { enabled: obsEnabled, isFetching } = useObserverStore();
 
   // Gdy tryb widoczności włączony → auto-otwórz prawy panel z wynikami
   useEffect(() => {
     if (obsEnabled) {
       setActiveTab('visibility');
-    } else if (activeTab === 'visibility') {
+    } else if (activeTab === 'visibility' && !isFetching) {
       setActiveTab(null);
     }
-  }, [obsEnabled]);
+  }, [obsEnabled, isFetching]);
 
   const currentTitle = activeTab ? TAB_TITLES[activeTab] : null;
 
