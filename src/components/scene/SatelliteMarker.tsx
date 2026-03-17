@@ -17,7 +17,7 @@ export function SatelliteMarker({ eph, color, selected = false, onClick }: Satel
   const meshRef = useRef<THREE.Mesh>(null!);
   const glowRef = useRef<THREE.Mesh>(null!);
 
-  const size = selected ? 0.026 : 0.018;
+  const size = selected ? 0.038 : 0.028;
 
   /** Per-frame: bezpośrednia mutacja mesh.position — zero React re-renderów */
   useFrame(() => {

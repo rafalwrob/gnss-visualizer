@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSatelliteStore } from '../../store/satelliteStore';
 import { useUiStore } from '../../store/uiStore';
 import { useTimeStore } from '../../store/timeStore';
@@ -10,6 +10,8 @@ import type { KeplerianEphemeris } from '../../types/ephemeris';
 
 const DEG = Math.PI / 180;
 
+// ── SliderRow ─────────────────────────────────────────────────────────────────
+
 interface SliderRowProps {
   label: string;
   value: number;
@@ -19,13 +21,31 @@ interface SliderRowProps {
   step: number;
   onChange: (v: number) => void;
   color?: string;
+  description?: string;
+  descOpen?: boolean;
+  onToggleDesc?: () => void;
 }
 
-function SliderRow({ label, value, displayValue, min, max, step, onChange, color = '#58a6ff' }: SliderRowProps) {
+function SliderRow({
+  label, value, displayValue, min, max, step, onChange,
+  color = '#58a6ff', description, descOpen, onToggleDesc,
+}: SliderRowProps) {
   return (
     <div className="mb-3">
       <div className="flex justify-between mb-1">
-        <span className="text-[#8b949e] text-[11px] font-mono">{label}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-[#8b949e] text-[11px] font-mono">{label}</span>
+          {description && (
+            <button
+              onClick={onToggleDesc}
+              className="w-3.5 h-3.5 rounded-full border text-[8px] font-bold flex items-center justify-center flex-shrink-0 leading-none"
+              style={{
+                borderColor: descOpen ? '#58a6ff' : '#30363d',
+                color: descOpen ? '#58a6ff' : '#6e7681',
+              }}
+            >?</button>
+          )}
+        </div>
         <span className="text-xs font-bold font-mono" style={{ color }}>{displayValue}</span>
       </div>
       <input
@@ -34,6 +54,11 @@ function SliderRow({ label, value, displayValue, min, max, step, onChange, color
         className="w-full h-1.5"
         style={{ accentColor: color }}
       />
+      {description && (
+        <div style={{ maxHeight: descOpen ? '96px' : '0', overflow: 'hidden', transition: 'max-height 0.2s ease-out' }}>
+          <div className="text-[10px] text-[#6e7681] mt-1.5 leading-relaxed">{description}</div>
+        </div>
+      )}
     </div>
   );
 }
@@ -49,11 +74,14 @@ function SmallToggle({ value, onChange }: { value: boolean; onChange: (v: boolea
   );
 }
 
+// ── AlmanachChart ─────────────────────────────────────────────────────────────
+
 const PAD = { t: 8, r: 8, b: 20, l: 38 };
 const CHART_W = 220;
 const CHART_H = 80;
 const INNER_W = CHART_W - PAD.l - PAD.r;
 const INNER_H = CHART_H - PAD.t - PAD.b;
+const SVG_W_A = CHART_W + 2;
 
 function segColor(dr: number): string {
   if (dr < 100) return '#3fb950';
@@ -61,7 +89,17 @@ function segColor(dr: number): string {
   return '#f85149';
 }
 
-function AlmanachChart({ data, periodH }: { data: { tH: number; dr: number }[]; periodH: number }) {
+function AlmanachChart({
+  data,
+  periodH,
+  currentTH,
+}: {
+  data: { tH: number; dr: number }[];
+  periodH: number;
+  currentTH: number;
+}) {
+  const [hover, setHover] = useState<{ tH: number; dr: number } | null>(null);
+
   const maxDr = Math.max(...data.map(p => p.dr));
   const avgDr = data.reduce((s, p) => s + p.dr, 0) / data.length;
   const yMax = maxDr < 1 ? 10 : Math.ceil(maxDr / 50) * 50;
@@ -73,31 +111,60 @@ function AlmanachChart({ data, periodH }: { data: { tH: number; dr: number }[]; 
     ];
   }
 
+  function handleMouseMove(e: React.MouseEvent<SVGRectElement>) {
+    const rect = e.currentTarget.closest('svg')!.getBoundingClientRect();
+    const scaleX = rect.width / SVG_W_A;
+    const x = (e.clientX - rect.left) / scaleX;
+    const tH = Math.max(0, Math.min(((x - PAD.l) / INNER_W) * periodH, periodH));
+    const nearest = data.reduce((best, p) => Math.abs(p.tH - tH) < Math.abs(best.tH - tH) ? p : best);
+    setHover(nearest);
+  }
+
+  const nowX = PAD.l + ((currentTH % periodH) / periodH) * INNER_W;
+  const hoverX = hover ? PAD.l + (hover.tH / periodH) * INNER_W : 0;
+  const hoverY = hover ? toXY(hover.tH, hover.dr)[1] : 0;
+
   return (
     <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">
       <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-2">
         ΔR: Efemerys vs Almanach
       </div>
-      <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="w-full" style={{ height: CHART_H }}>
+      <p className="text-[10px] text-[#6e7681] leading-relaxed mb-2">
+        ΔR = różnica pozycji: efemerys (z korekcjami J₂/harmonicznymi) vs almanach
+        (tylko orbita Keplera). Większe ΔR = almanach jest mniej dokładny.
+      </p>
+      <svg
+        viewBox={`0 0 ${SVG_W_A} ${CHART_H}`}
+        className="w-full"
+        style={{ height: CHART_H }}
+        onMouseLeave={() => setHover(null)}
+      >
         {/* tło */}
-        <rect width={CHART_W} height={CHART_H} fill="#0d1117" rx="4" />
-        {/* linia siatki y=100m, y=500m */}
+        <rect width={SVG_W_A} height={CHART_H} fill="#0d1117" rx="4" />
+
+        {/* linie siatki y=100m, y=500m */}
         {[100, 500].map(mark => {
           if (mark > yMax) return null;
           const y = PAD.t + INNER_H - (mark / yMax) * INNER_H;
+          const label = mark === 100 ? 'dokł. 100m' : 'nawigacja';
           return (
             <g key={mark}>
               <line x1={PAD.l} y1={y} x2={PAD.l + INNER_W} y2={y} stroke="#21262d" strokeWidth="0.5" strokeDasharray="3,3" />
               <text x={PAD.l - 3} y={y + 3} textAnchor="end" fill="#484f58" fontSize="7" fontFamily="monospace">
                 {mark}
               </text>
+              <text x={PAD.l + INNER_W} y={y - 2} textAnchor="end" fill="#30363d" fontSize="6" fontFamily="monospace">
+                {label}
+              </text>
             </g>
           );
         })}
+
         {/* oś Y — max */}
         <text x={PAD.l - 3} y={PAD.t + 4} textAnchor="end" fill="#484f58" fontSize="7" fontFamily="monospace">
           {yMax}
         </text>
+
         {/* oś X — etykiety czasowe */}
         {[0, Math.round(periodH / 2), Math.round(periodH)].map(h => {
           const x = PAD.l + (h / periodH) * INNER_W;
@@ -107,23 +174,50 @@ function AlmanachChart({ data, periodH }: { data: { tH: number; dr: number }[]; 
             </text>
           );
         })}
-        {/* segmenty wykresu kolorowane wg ΔR */}
+
+        {/* segmenty wykresu */}
         {data.slice(0, -1).map((p, i) => {
           const [x1, y1] = toXY(p.tH, p.dr);
           const [x2, y2] = toXY(data[i + 1].tH, data[i + 1].dr);
           return (
-            <line
-              key={i}
-              x1={x1} y1={y1} x2={x2} y2={y2}
-              stroke={segColor(p.dr)}
-              strokeWidth="1.5"
-              strokeLinecap="round"
-            />
+            <line key={i} x1={x1} y1={y1} x2={x2} y2={y2}
+              stroke={segColor(p.dr)} strokeWidth="1.5" strokeLinecap="round" />
           );
         })}
-        {/* linia bazowa y=0 */}
+
+        {/* linia bazowa */}
         <line x1={PAD.l} y1={PAD.t + INNER_H} x2={PAD.l + INNER_W} y2={PAD.t + INNER_H} stroke="#21262d" strokeWidth="0.5" />
+
+        {/* Marker "teraz" */}
+        <line x1={nowX} y1={PAD.t} x2={nowX} y2={PAD.t + INNER_H} stroke="#58a6ff" strokeWidth="1" strokeOpacity="0.7" />
+        <text x={nowX + 2} y={PAD.t + 6} fill="#58a6ff" fontSize="6" fontFamily="monospace">now</text>
+
+        {/* Hover: linia + punkt + tooltip */}
+        {hover && (
+          <g>
+            <line x1={hoverX} y1={PAD.t} x2={hoverX} y2={PAD.t + INNER_H}
+              stroke="#c9d1d9" strokeWidth="0.8" strokeDasharray="2,2" />
+            <circle cx={hoverX} cy={hoverY} r="3" fill={segColor(hover.dr)} />
+            <rect
+              x={hoverX + 4} y={hoverY - 14}
+              width={60} height={16}
+              fill="#161b22" stroke="#30363d" strokeWidth="0.5" rx="2"
+            />
+            <text x={hoverX + 8} y={hoverY - 5} fill="#c9d1d9" fontSize="7" fontFamily="monospace">
+              {`t=${hover.tH.toFixed(1)}h ΔR=${hover.dr.toFixed(0)}m`}
+            </text>
+          </g>
+        )}
+
+        {/* Overlay do śledzenia myszki */}
+        <rect
+          x={PAD.l} y={PAD.t}
+          width={INNER_W} height={INNER_H}
+          fill="transparent"
+          onMouseMove={handleMouseMove}
+        />
       </svg>
+
       {/* Statystyki */}
       <div className="flex justify-between mt-1.5 text-[10px] font-mono">
         <span>
@@ -136,9 +230,112 @@ function AlmanachChart({ data, periodH }: { data: { tH: number; dr: number }[]; 
         </span>
         <span className="text-[#484f58]">T={periodH.toFixed(1)} h</span>
       </div>
+
+      {/* Sekcja "Co to jest?" */}
+      <details className="mt-2">
+        <summary className="text-[10px] text-[#6e7681] cursor-pointer hover:text-[#8b949e] select-none">
+          Co to jest?
+        </summary>
+        <div className="mt-1.5 text-[10px] text-[#6e7681] leading-relaxed space-y-1">
+          <p><span className="text-[#8b949e]">Efemerys:</span> nadawany co ~2h, ważny ~4h. Zawiera korekcje harmoniczne (J₂, rezonanse).</p>
+          <p><span className="text-[#8b949e]">Almanach:</span> grubsza wersja, ważna ~tygodnie. Używana do pierwszego przybliżenia orbit.</p>
+          <p><span className="text-[#3fb950]">150m:</span> typowy błąd GPS gdy używa się almanaczu zamiast efemerydy po ~kilku godzinach.</p>
+        </div>
+      </details>
     </div>
   );
 }
+
+// ── PerturbationImpactChart ───────────────────────────────────────────────────
+
+const POLAR_SIZE = 200;
+const POLAR_CX = 100, POLAR_CY = 100;
+const POLAR_R = 60;
+const POLAR_SCALE = 200; // ±200m → ±15px
+
+interface PerturbProps {
+  Crc: number; Crs: number;
+  Cuc: number; Cus: number;
+  Cic: number; Cis: number;
+  a: number;   i0: number;
+}
+
+function PerturbationImpactChart({ Crc, Crs, Cuc, Cus, Cic, Cis, a, i0 }: PerturbProps) {
+  const paths = useMemo(() => {
+    const N = 72;
+    const pts = Array.from({ length: N + 1 }, (_, idx) => {
+      const phi = (idx / N) * 2 * Math.PI;
+      const phi2 = 2 * phi;
+      const dr   = Crs * Math.sin(phi2) + Crc * Math.cos(phi2);
+      const du_m = a * (Cus * Math.sin(phi2) + Cuc * Math.cos(phi2));
+      const di_m = a * i0 * (Cis * Math.sin(phi2) + Cic * Math.cos(phi2));
+      return { phi, dr, du_m, di_m };
+    });
+
+    function toPath(vals: number[]): string {
+      return vals.map((v, i) => {
+        const r = POLAR_R + Math.max(-POLAR_R * 0.9, Math.min(POLAR_R * 0.9, (v / POLAR_SCALE) * 15));
+        const x = POLAR_CX + r * Math.cos(pts[i].phi - Math.PI / 2);
+        const y = POLAR_CY + r * Math.sin(pts[i].phi - Math.PI / 2);
+        return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`;
+      }).join(' ') + ' Z';
+    }
+
+    return {
+      dr:   toPath(pts.map(p => p.dr)),
+      du:   toPath(pts.map(p => p.du_m)),
+      di:   toPath(pts.map(p => p.di_m)),
+    };
+  }, [Crc, Crs, Cuc, Cus, Cic, Cis, a, i0]);
+
+  return (
+    <div className="mt-3">
+      <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-2">
+        Wykres perturbacji [m vs φ]
+      </div>
+      <div className="flex items-start gap-3">
+        <svg width={POLAR_SIZE} height={POLAR_SIZE} className="flex-shrink-0">
+          <rect width={POLAR_SIZE} height={POLAR_SIZE} fill="#0d1117" rx="4" />
+          {/* Koła referencyjne */}
+          {[POLAR_R * 0.5, POLAR_R, POLAR_R * 1.3].map((r, i) => (
+            <circle key={i} cx={POLAR_CX} cy={POLAR_CY} r={r} stroke="#21262d" fill="none" strokeDasharray={i === 1 ? '3,3' : '1,4'} />
+          ))}
+          {/* Osie */}
+          <line x1={POLAR_CX} y1={POLAR_CY - POLAR_R - 12} x2={POLAR_CX} y2={POLAR_CY + POLAR_R + 12} stroke="#21262d" strokeWidth="0.5" />
+          <line x1={POLAR_CX - POLAR_R - 12} y1={POLAR_CY} x2={POLAR_CX + POLAR_R + 12} y2={POLAR_CY} stroke="#21262d" strokeWidth="0.5" />
+          {/* Etykieta φ=0° */}
+          <text x={POLAR_CX + 3} y={POLAR_CY - POLAR_R - 4} fill="#484f58" fontSize="7" fontFamily="monospace">φ=0°</text>
+          {/* Krzywe perturbacji */}
+          <path d={paths.dr} stroke="#3fb950" fill="none" strokeWidth="1.5" />
+          <path d={paths.du} stroke="#f0883e" fill="none" strokeWidth="1.5" />
+          <path d={paths.di} stroke="#a371f7" fill="none" strokeWidth="1.5" />
+        </svg>
+        <div className="text-[10px] font-mono space-y-2">
+          <div><span style={{ color: '#3fb950' }}>■</span> <span className="text-[#6e7681]">Δr (promień)</span></div>
+          <div><span style={{ color: '#f0883e' }}>■</span> <span className="text-[#6e7681]">Δu (arg. szer.)</span></div>
+          <div><span style={{ color: '#a371f7' }}>■</span> <span className="text-[#6e7681]">Δi (inklinacja)</span></div>
+          <div className="text-[9px] text-[#484f58] leading-relaxed mt-2">
+            Odchylenie od koła = amplituda perturbacji. Skala: ±200m→±{(15).toFixed(0)}px
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── OrbitalElements ───────────────────────────────────────────────────────────
+
+const DESCRIPTIONS: Partial<Record<keyof KeplerianEphemeris, string>> = {
+  OmegaDot: 'Precesja węzła wstępującego wywołana spłaszczeniem Ziemi (J₂). Dla GPS: ~−8.5 nrad/s → płaszczyzna orbity przesuwa się o ~−0.04°/dobę. Nieuwzględniona: błąd pozycji rośnie z tygodniami.',
+  dn: 'Poprawka ruchu średniego względem wartości Keplera n₀=√(μ/a³). Wynika z rezerwacji orbitalnych i perturbacji. dn>0 → satelita "przyspiesza" względem czystej elipsy.',
+  IDOT: 'Prędkość zmiany inklinacji płaszczyzny orbity [rad/s]. Wartości ~prad/s. Bez tej korekty błąd rośnie proporcjonalnie do czasu od epoki.',
+  Crc: 'Amplitudy korekcji promienia orbity [m] proporcjonalne do cos(2φ). Δr = Crs·sin(2φ) + Crc·cos(2φ). Powodują lekkie "owalenie" orbity.',
+  Crs: 'Amplitudy korekcji promienia orbity [m] proporcjonalne do sin(2φ). Δr = Crs·sin(2φ) + Crc·cos(2φ). Powodują lekkie "owalenie" orbity.',
+  Cuc: 'Korekcja argumentu szerokości [μrad]. Δu = Cus·sin(2φ) + Cuc·cos(2φ). Przesuwa satelitę "wzdłuż" toru.',
+  Cus: 'Korekcja argumentu szerokości [μrad]. Δu = Cus·sin(2φ) + Cuc·cos(2φ). Przesuwa satelitę "wzdłuż" toru.',
+  Cic: 'Korekcja inklinacji [μrad]. Δi = Cis·sin(2φ) + Cic·cos(2φ). Lekkie "kiwnięcie" płaszczyzny orbity — najtrudniejsze do zauważenia.',
+  Cis: 'Korekcja inklinacji [μrad]. Δi = Cis·sin(2φ) + Cic·cos(2φ). Lekkie "kiwnięcie" płaszczyzny orbity — najtrudniejsze do zauważenia.',
+};
 
 export function OrbitalElements() {
   const { singleEph, setSingleEph } = useSatelliteStore();
@@ -147,10 +344,16 @@ export function OrbitalElements() {
   const { lat: obsLat, lon: obsLon } = useObserverStore();
   const { enabled, alpha, beta, setEnabled, setAlpha, setBeta } = useIonoStore();
 
+  const [openDesc, setOpenDesc] = useState<string | null>(null);
+
   const timeSec = timeHours * 3600;
 
   function update(key: keyof KeplerianEphemeris, raw: number) {
     setSingleEph({ ...singleEph, [key]: raw });
+  }
+
+  function toggleDesc(key: string) {
+    setOpenDesc(prev => prev === key ? null : key);
   }
 
   // ΔR(t) — błąd almanach vs efemerys przez jeden okres orbitalny
@@ -193,6 +396,9 @@ export function OrbitalElements() {
   );
 
   const delayAtEl = (el: number) => klobucherDelay(el, obsLat, obsLon, 0, gpsSec, params);
+
+  const periodH = orbitalPeriod(singleEph.a) / 3600;
+  const currentTH = timeHours % periodH;
 
   return (
     <div className="space-y-4 font-mono">
@@ -305,6 +511,9 @@ export function OrbitalElements() {
               min={-20} max={0} step={0.01}
               onChange={v => update('OmegaDot', v * 1e-9)}
               color="#c9d1d9"
+              description={DESCRIPTIONS.OmegaDot}
+              descOpen={openDesc === 'OmegaDot'}
+              onToggleDesc={() => toggleDesc('OmegaDot')}
             />
             <SliderRow
               label="Korekcja n  dn"
@@ -313,6 +522,9 @@ export function OrbitalElements() {
               min={-20} max={20} step={0.01}
               onChange={v => update('dn', v * 1e-9)}
               color="#c9d1d9"
+              description={DESCRIPTIONS.dn}
+              descOpen={openDesc === 'dn'}
+              onToggleDesc={() => toggleDesc('dn')}
             />
             <SliderRow
               label="Dryft inkl.  IDOT"
@@ -321,6 +533,9 @@ export function OrbitalElements() {
               min={-500} max={500} step={0.1}
               onChange={v => update('IDOT', v * 1e-12)}
               color="#c9d1d9"
+              description={DESCRIPTIONS.IDOT}
+              descOpen={openDesc === 'IDOT'}
+              onToggleDesc={() => toggleDesc('IDOT')}
             />
 
             <div className="border-t border-[#21262d] my-3" />
@@ -332,6 +547,9 @@ export function OrbitalElements() {
               min={-200} max={200} step={0.1}
               onChange={v => update('Crc', v)}
               color="#7ee787"
+              description={DESCRIPTIONS.Crc}
+              descOpen={openDesc === 'Crc'}
+              onToggleDesc={() => toggleDesc('Crc')}
             />
             <SliderRow
               label="Crs (promień sin)"
@@ -340,6 +558,9 @@ export function OrbitalElements() {
               min={-200} max={200} step={0.1}
               onChange={v => update('Crs', v)}
               color="#7ee787"
+              description={DESCRIPTIONS.Crs}
+              descOpen={openDesc === 'Crs'}
+              onToggleDesc={() => toggleDesc('Crs')}
             />
             <SliderRow
               label="Cuc (arg. szer. cos)"
@@ -348,6 +569,9 @@ export function OrbitalElements() {
               min={-10} max={10} step={0.001}
               onChange={v => update('Cuc', v * 1e-6)}
               color="#f0883e"
+              description={DESCRIPTIONS.Cuc}
+              descOpen={openDesc === 'Cuc'}
+              onToggleDesc={() => toggleDesc('Cuc')}
             />
             <SliderRow
               label="Cus (arg. szer. sin)"
@@ -356,6 +580,9 @@ export function OrbitalElements() {
               min={-10} max={10} step={0.001}
               onChange={v => update('Cus', v * 1e-6)}
               color="#f0883e"
+              description={DESCRIPTIONS.Cus}
+              descOpen={openDesc === 'Cus'}
+              onToggleDesc={() => toggleDesc('Cus')}
             />
             <SliderRow
               label="Cic (inkl. cos)"
@@ -364,6 +591,9 @@ export function OrbitalElements() {
               min={-1} max={1} step={0.0001}
               onChange={v => update('Cic', v * 1e-6)}
               color="#a371f7"
+              description={DESCRIPTIONS.Cic}
+              descOpen={openDesc === 'Cic'}
+              onToggleDesc={() => toggleDesc('Cic')}
             />
             <SliderRow
               label="Cis (inkl. sin)"
@@ -372,6 +602,16 @@ export function OrbitalElements() {
               min={-1} max={1} step={0.0001}
               onChange={v => update('Cis', v * 1e-6)}
               color="#a371f7"
+              description={DESCRIPTIONS.Cis}
+              descOpen={openDesc === 'Cis'}
+              onToggleDesc={() => toggleDesc('Cis')}
+            />
+
+            <PerturbationImpactChart
+              Crc={singleEph.Crc} Crs={singleEph.Crs}
+              Cuc={singleEph.Cuc} Cus={singleEph.Cus}
+              Cic={singleEph.Cic} Cis={singleEph.Cis}
+              a={singleEph.a}     i0={singleEph.i0}
             />
 
             <div className="border-t border-[#21262d] my-3" />
@@ -389,7 +629,11 @@ export function OrbitalElements() {
       </div>
 
       {/* ── ΔR: efemerys vs almanach ── */}
-      <AlmanachChart data={almanachError} periodH={orbitalPeriod(singleEph.a) / 3600} />
+      <AlmanachChart
+        data={almanachError}
+        periodH={periodH}
+        currentTH={currentTH}
+      />
 
       {/* ── Jonosfera Klobuchar ── */}
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4">

@@ -1,18 +1,19 @@
+import { useEffect } from 'react';
 import { GlobeScene } from '../components/scene/GlobeScene';
 import { TimeControl } from '../components/panels/TimeControl';
 import { SystemPanel } from '../components/panels/SystemPanel';
 import { OrbitalElements } from '../components/panels/OrbitalElements';
 import { SatelliteList } from '../components/panels/SatelliteList';
-import { SatelliteDetailPanel } from '../components/panels/SatelliteDetailPanel';
 import { KeplerStepper } from '../components/education/KeplerStepper';
 import { VisibilityPanel } from '../components/panels/VisibilityPanel';
+import { VisibilityControls } from '../components/panels/VisibilityControls';
 import { ReceiverPanel } from '../components/panels/ReceiverPanel';
 import { FrequencyPanel } from '../components/panels/FrequencyPanel';
 import { useUiStore } from '../store/uiStore';
 import type { LeftTab } from '../store/uiStore';
 import { useObserverStore } from '../store/observerStore';
 
-// ── Ustawienia (uproszczone — ECI/ECEF przeniesione do sidebara) ──
+// ── Toggle komponent ──────────────────────────────────────────────────────────
 
 function Toggle({
   label, hint, value, onChange,
@@ -34,7 +35,12 @@ function Toggle({
 }
 
 function SettingsPanel() {
-  const { showGroundTrack, setShowGroundTrack, showEciAxes, setShowEciAxes } = useUiStore();
+  const {
+    showGroundTrack, setShowGroundTrack,
+    showEciAxes, setShowEciAxes,
+    showSignalLines, setShowSignalLines,
+    showEnuAxes, setShowEnuAxes,
+  } = useUiStore();
   return (
     <div className="space-y-4 font-mono">
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
@@ -47,37 +53,62 @@ function SettingsPanel() {
           onChange={setShowEciAxes}
         />
       </div>
+      <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Tryb widoczności</div>
+        <Toggle
+          label="Linie sygnałowe"
+          hint="Linie obserwator↔satelity (pulsujące)"
+          value={showSignalLines}
+          onChange={setShowSignalLines}
+        />
+        <Toggle
+          label="Osie ENU"
+          hint="E (wsch.) · N (płn.) · U (góra) przy obserwatorze"
+          value={showEnuAxes}
+          onChange={setShowEnuAxes}
+        />
+      </div>
     </div>
   );
 }
 
-// ── Konfiguracja zakładek ──────────────────────────────────────────────────────
+// ── Konfiguracja nawigacji (bez Widoczność — jest w SystemPanel) ──────────────
 
-const TABS: { id: LeftTab; label: string; title: string }[] = [
-  { id: 'orbital',    label: 'Parametry',   title: 'Parametry orbity' },
-  { id: 'satellites', label: 'Satelity',    title: 'Lista satelitów' },
-  { id: 'kepler',     label: 'Kalkulator',  title: 'Kalkulator Keplera' },
-  { id: 'visibility', label: 'Widoczność',  title: 'Widoczność satelitów' },
-  { id: 'receiver',   label: 'Odbiornik',   title: 'Odbiornik GNSS' },
-  { id: 'signals',    label: 'Sygnały',     title: 'Pasma sygnałów GNSS' },
-  { id: 'settings',   label: 'Ustawienia',  title: 'Ustawienia sceny' },
+const NAV_TABS: { id: LeftTab; label: string }[] = [
+  { id: 'orbital',    label: 'Parametry' },
+  { id: 'satellites', label: 'Satelity' },
+  { id: 'kepler',     label: 'Kalkulator' },
+  { id: 'receiver',   label: 'Odbiornik' },
+  { id: 'signals',    label: 'Sygnały' },
+  { id: 'settings',   label: 'Ustawienia' },
 ];
+
+const TAB_TITLES: Partial<Record<LeftTab, string>> = {
+  orbital:    'Parametry orbity',
+  satellites: 'Lista satelitów',
+  kepler:     'Kalkulator Keplera',
+  visibility: 'Widoczność satelitów',
+  receiver:   'Odbiornik GNSS',
+  signals:    'Pasma sygnałów GNSS',
+  settings:   'Ustawienia sceny',
+};
 
 // ── Główny komponent ──────────────────────────────────────────────────────────
 
 export function Visualizer() {
   const { onlineMode, activeTab, setActiveTab, useEcef, setUseEcef } = useUiStore();
-  const { enabled: obsEnabled, setEnabled: setObsEnabled } = useObserverStore();
+  const { enabled: obsEnabled } = useObserverStore();
 
-  function toggleTab(id: LeftTab) {
-    if (id === 'visibility') {
-      setObsEnabled(!obsEnabled);
-      return;
+  // Gdy tryb widoczności włączony → auto-otwórz prawy panel z wynikami
+  useEffect(() => {
+    if (obsEnabled) {
+      setActiveTab('visibility');
+    } else if (activeTab === 'visibility') {
+      setActiveTab(null);
     }
-    setActiveTab(activeTab === id ? null : id);
-  }
+  }, [obsEnabled]);
 
-  const currentTab = activeTab && activeTab !== 'visibility' ? TABS.find(t => t.id === activeTab) : null;
+  const currentTitle = activeTab ? TAB_TITLES[activeTab] : null;
 
   return (
     <div className="flex h-screen bg-[#0a0e17] text-[#e6edf3] overflow-hidden">
@@ -131,25 +162,21 @@ export function Visualizer() {
 
         {/* Kontrolki zależne od trybu — przewijalne */}
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 border-b border-[#21262d]">
-          {obsEnabled ? <VisibilityPanel /> : <TimeControl />}
+          {obsEnabled ? <VisibilityControls /> : <TimeControl />}
         </div>
 
-        {/* Siatka nawigacyjna 2×3 */}
+        {/* Siatka nawigacyjna 2×3 (bez Widoczność) */}
         <div className="flex-shrink-0 px-3 py-3">
           <div className="text-[#484f58] text-[10px] uppercase tracking-widest font-mono mb-2 px-0.5">Widoki</div>
           <div className="grid grid-cols-2 gap-1.5">
-            {TABS.map(t => (
+            {NAV_TABS.map(t => (
               <button
                 key={t.id}
-                onClick={() => toggleTab(t.id)}
+                onClick={() => setActiveTab(activeTab === t.id ? null : t.id)}
                 className={`py-3 rounded-lg text-[13px] font-mono font-medium border transition-all ${
-                  t.id === 'visibility'
-                    ? (obsEnabled
-                        ? 'bg-[#6e40c9]/20 border-[#6e40c9] text-[#a371f7]'
-                        : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:border-[#a371f7]/50 hover:text-[#c9d1d9]')
-                    : (activeTab === t.id
-                        ? 'bg-[#1f6feb]/20 border-[#1f6feb] text-[#58a6ff]'
-                        : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/50 hover:text-[#c9d1d9]')
+                  activeTab === t.id
+                    ? 'bg-[#1f6feb]/20 border-[#1f6feb] text-[#58a6ff]'
+                    : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/50 hover:text-[#c9d1d9]'
                 }`}
               >
                 {t.label}
@@ -166,18 +193,15 @@ export function Visualizer() {
         <div className="absolute bottom-2 right-3 text-[10px] text-[#21262d] font-mono pointer-events-none select-none">
           GNSS Visualizer · α
         </div>
-        <SatelliteDetailPanel />
       </div>
 
       {/* ═══ PRAWA SZUFLADA — zawartość zakładki ═══ */}
-      {activeTab && activeTab !== 'visibility' && currentTab && (
+      {activeTab && currentTitle && (
         <div className="w-[400px] flex-shrink-0 flex flex-col border-l border-[#21262d] bg-[#0d1117]">
 
           {/* Nagłówek panelu */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#21262d] flex-shrink-0">
-            <div>
-              <div className="text-[#e6edf3] font-bold text-base font-mono">{currentTab.title}</div>
-            </div>
+            <div className="text-[#e6edf3] font-bold text-base font-mono">{currentTitle}</div>
             <button
               onClick={() => setActiveTab(null)}
               className="w-7 h-7 flex items-center justify-center rounded-md text-[#6e7681] hover:text-[#e6edf3] hover:bg-[#21262d] transition-colors text-lg leading-none"
@@ -191,6 +215,7 @@ export function Visualizer() {
             {activeTab === 'orbital'    && <OrbitalElements />}
             {activeTab === 'satellites' && <SatelliteList />}
             {activeTab === 'kepler'     && <KeplerStepper />}
+            {activeTab === 'visibility' && <VisibilityPanel />}
             {activeTab === 'receiver'   && <ReceiverPanel />}
             {activeTab === 'signals'    && <FrequencyPanel />}
             {activeTab === 'settings'   && <SettingsPanel />}

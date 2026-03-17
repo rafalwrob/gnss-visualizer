@@ -1,48 +1,173 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState } from 'react';
 import { useSatelliteStore } from '../../store/satelliteStore';
+import { useObserverStore } from '../../store/observerStore';
 import { parseRinex } from '../../services/parsers/rinex';
 import { SAT_DB } from '../../constants/satDatabase';
+import { computeGPSPosition } from '../../services/orbital/keplerMath';
+import { satElevAz, latLonAltToEcef } from '../../services/coordinates/ecefEnu';
+import { anim } from '../scene/animState';
+import { R_E } from '../../constants/gnss';
 
 const R2D = 180 / Math.PI;
 
+interface LiveData { el: number; az: number; altKm: number; rangeKm: number; }
+
 function SatelliteDetails({ idx }: { idx: number }) {
-  const { satellites } = useSatelliteStore();
+  const { satellites, selectedIndex, selectSatellite } = useSatelliteStore();
+  const { enabled: obsEnabled, lat: obsLat, lon: obsLon, alt: obsAlt } = useObserverStore();
+  const [liveDat, setLiveDat] = useState<LiveData | null>(null);
+
   const sat = satellites[idx];
   if (!sat) return null;
 
   const db = SAT_DB[sat.prn];
   const e = sat.eph;
+  const periodH = (2 * Math.PI * Math.sqrt(e.a ** 3 / 3.986005e14)) / 3600;
 
-  const rows: [string, string][] = [
-    ['PRN',    sat.prn],
-    ['System', sat.system.toUpperCase()],
-    ...(db ? [['Nazwa', db.name] as [string, string]] : []),
-    ['a',      `${(e.a / 1000).toFixed(1)} km`],
-    ['e',      e.e.toFixed(6)],
-    ['i',      `${(e.i0 * R2D).toFixed(2)}°`],
-    ['Ω₀',    `${(e.Omega0 * R2D).toFixed(2)}°`],
-    ['ω',      `${(e.omega * R2D).toFixed(2)}°`],
-    ['M₀',    `${(e.M0 * R2D).toFixed(2)}°`],
-    ['T',      `${((2 * Math.PI * Math.sqrt(e.a ** 3 / 3.986005e14)) / 3600).toFixed(2)} h`],
+  // Live update co 500ms
+  useEffect(() => {
+    if (!obsEnabled) { setLiveDat(null); return; }
+    function compute() {
+      const timeSec = anim.realtimeClock
+        ? (Date.now() - anim.realtimeOriginMs) / 1000
+        : anim.timeSec;
+      const { x, y, z } = computeGPSPosition(sat.eph, timeSec, true, false);
+      const { el, az } = satElevAz(x, y, z, obsLat, obsLon, obsAlt);
+      const r = Math.sqrt(x * x + y * y + z * z);
+      const altKm = (r - R_E) / 1000;
+      const obs = latLonAltToEcef(obsLat, obsLon, obsAlt);
+      const dx = x - obs.x, dy = y - obs.y, dz = z - obs.z;
+      const rangeKm = Math.sqrt(dx * dx + dy * dy + dz * dz) / 1000;
+      setLiveDat({ el, az, altKm, rangeKm });
+    }
+    compute();
+    const id = setInterval(compute, 500);
+    return () => clearInterval(id);
+  }, [sat, obsEnabled, obsLat, obsLon, obsAlt]);
+
+  const orbital: [string, string][] = [
+    ['a',   `${(e.a / 1000).toFixed(1)} km`],
+    ['e',   e.e.toFixed(6)],
+    ['i',   `${(e.i0 * R2D).toFixed(3)}°`],
+    ['Ω₀', `${((e.Omega0 * R2D + 360) % 360).toFixed(2)}°`],
+    ['ω',   `${(e.omega * R2D).toFixed(2)}°`],
+    ['M₀', `${((e.M0 * R2D + 360) % 360).toFixed(2)}°`],
+    ['T',   `${periodH.toFixed(2)} h`],
   ];
 
   return (
-    <div className="border-t border-[#30363d] px-3 py-3">
-      <div className="flex items-center gap-2 mb-2">
-        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: sat.color }} />
+    <div className="border-t border-[#30363d] px-3 py-3 space-y-3">
+
+      {/* Nagłówek satelity */}
+      <div className="flex items-center gap-2">
+        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: sat.color }} />
         <span className="text-[13px] text-[#e6edf3] font-bold font-mono">{sat.prn}</span>
         {db && <span className="text-[11px] text-[#8b949e] font-mono">{db.name}</span>}
+        <div className="ml-auto flex gap-1">
+          <span className="px-1.5 py-0.5 rounded text-[8px] font-bold font-mono"
+            style={{ backgroundColor: sat.color + '25', color: sat.color, border: `1px solid ${sat.color}50` }}>
+            {sat.system.toUpperCase()}
+          </span>
+          <span className="px-1.5 py-0.5 rounded text-[8px] font-mono bg-[#21262d] text-[#8b949e] border border-[#30363d]">
+            P{sat.plane + 1}
+          </span>
+        </div>
       </div>
-      <table className="w-full">
-        <tbody>
-          {rows.map(([k, v]) => (
-            <tr key={k}>
-              <td className="text-[11px] text-[#8b949e] font-mono pr-3 py-0.5 w-10">{k}</td>
-              <td className="text-[11px] text-[#c9d1d9] font-mono">{v}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+
+      {/* Nawigacja ← → */}
+      <div className="flex gap-1">
+        <button
+          onClick={() => selectedIndex > 0 && selectSatellite(selectedIndex - 1)}
+          disabled={selectedIndex === 0}
+          className="flex-1 py-1 rounded text-[10px] bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-30 border border-[#30363d] font-mono"
+        >
+          ← Poprz.
+        </button>
+        <span className="text-[#484f58] text-[10px] self-center px-2 font-mono">
+          {selectedIndex + 1}/{satellites.length}
+        </span>
+        <button
+          onClick={() => selectedIndex < satellites.length - 1 && selectSatellite(selectedIndex + 1)}
+          disabled={selectedIndex >= satellites.length - 1}
+          className="flex-1 py-1 rounded text-[10px] bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-30 border border-[#30363d] font-mono"
+        >
+          Nast. →
+        </button>
+      </div>
+
+      {/* Elementy orbitalne */}
+      <div>
+        <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-1.5 font-mono">Elementy orbitalne</div>
+        <table className="w-full font-mono">
+          <tbody>
+            {orbital.map(([sym, val]) => (
+              <tr key={sym}>
+                <td className="text-[10px] font-bold text-[#58a6ff] pr-3 py-0.5 w-8">{sym}</td>
+                <td className="text-[10px] text-[#e6edf3] py-0.5">{val}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Info z bazy danych */}
+      {db && (
+        <div className="border-t border-[#21262d] pt-2">
+          <div className="text-[#8b949e] text-[9px] uppercase tracking-wider mb-1.5 font-mono">Info</div>
+          <div className="space-y-0.5 text-[9px] font-mono">
+            <div className="flex justify-between">
+              <span className="text-[#8b949e]">NORAD</span>
+              <span className="text-[#e6edf3]">{db.norad}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#8b949e]">Blok</span>
+              <span className="text-[#e6edf3]">{db.block}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#8b949e]">Launch</span>
+              <span className="text-[#e6edf3]">{db.launched}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#8b949e]">Sygnały</span>
+              <span className="text-[#e6edf3]">{db.freqs.join(', ')}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Sekcja Live */}
+      {obsEnabled && (
+        <div className="border-t border-[#21262d] pt-2">
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#3fb950] animate-pulse" />
+            <span className="text-[#3fb950] text-[9px] uppercase tracking-wider font-mono">Live</span>
+          </div>
+          {liveDat ? (
+            <div className="space-y-0.5 text-[9px] font-mono">
+              <div className="flex justify-between">
+                <span className="text-[#8b949e]">Elewacja</span>
+                <span className={liveDat.el >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
+                  {liveDat.el.toFixed(1)}°
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8b949e]">Azymut</span>
+                <span className="text-[#e6edf3]">{liveDat.az.toFixed(1)}°</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8b949e]">Alt. sat.</span>
+                <span className="text-[#e6edf3]">{liveDat.altKm.toFixed(0)} km</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-[#8b949e]">Dystans</span>
+                <span className="text-[#e6edf3]">{liveDat.rangeKm.toFixed(0)} km</span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[9px] text-[#484f58] font-mono">Obliczanie…</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

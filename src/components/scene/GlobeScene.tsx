@@ -7,6 +7,8 @@ import { IonoLayer } from './IonoLayer';
 import { SatelliteMarker } from './SatelliteMarker';
 import { OrbitTrail } from './OrbitTrail';
 import { GroundTrack } from './GroundTrack';
+import { SignalLines } from './SignalLines';
+import { EnuAxes } from './EnuAxes';
 import { anim } from './animState';
 import { useSatelliteStore } from '../../store/satelliteStore';
 import { useTimeStore } from '../../store/timeStore';
@@ -21,7 +23,7 @@ import type { KeplerianEphemeris } from '../../types/ephemeris';
 /** Synchronizuje mutable anim{} z Zustand stores oraz obsługuje pętlę animacji */
 function SceneController() {
   const { animating, animSpeed, timeHours, traceHours, setTimeHours } = useTimeStore();
-  const { showHarmonics, useEcef } = useUiStore();
+  const { showHarmonics, useEcef, showSignalLines, showEnuAxes } = useUiStore();
   const { enabled: obsEnabled, lat: obsLat, lon: obsLon, alt: obsAlt, minElevation } = useObserverStore();
 
   const frameCount = useRef(0);
@@ -39,6 +41,8 @@ function SceneController() {
     anim.obsAlt = obsAlt;
   }, [obsLat, obsLon, obsAlt]);
   useEffect(() => { anim.obsMinElevation = minElevation; }, [minElevation]);
+  useEffect(() => { anim.showSignalLines = showSignalLines; }, [showSignalLines]);
+  useEffect(() => { anim.showEnuAxes = showEnuAxes; }, [showEnuAxes]);
 
   // Suwak UI → anim.timeSec (tylko gdy NIE animujemy i NIE live)
   useEffect(() => {
@@ -169,7 +173,9 @@ function SceneContent() {
           ))}
           <EarthAligned>
             <ObserverMarker />
+            <EnuAxes />
           </EarthAligned>
+          <SignalLines />
         </>
       )}
 
@@ -252,7 +258,7 @@ function SceneContent() {
 export function GlobeScene() {
   return (
     <Canvas
-      camera={{ position: [0, 0, 3.6], fov: 45 }}
+      camera={{ position: [0, 0, 5.5], fov: 45 }}
       style={{ background: '#050a14' }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       dpr={[1, 2]}

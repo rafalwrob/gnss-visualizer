@@ -15,6 +15,8 @@ export const anim = {
   realtimeOriginMs: 0,
   /** Tryb widoczności z pozycji obserwatora */
   visibilityMode: false,
+  showSignalLines: false,
+  showEnuAxes: false,
   obsLat: 52.2297,
   obsLon: 21.0122,
   obsAlt: 100,

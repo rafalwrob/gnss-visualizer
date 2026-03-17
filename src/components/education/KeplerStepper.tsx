@@ -1,9 +1,253 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import { useSatelliteStore } from '../../store/satelliteStore';
 import { useTimeStore } from '../../store/timeStore';
 
 const DEG = Math.PI / 180;
+
+const SLIDE_STYLE = `
+@keyframes stepSlideR { from { opacity:0; transform:translateX(14px); } to { opacity:1; transform:translateX(0); } }
+@keyframes stepSlideL { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:translateX(0); } }
+`;
+
+// ── SVG Diagramy ────────────────────────────────────────────────────────────
+
+const D = { bg: '#0d1117', grid: '#21262d', axis: '#30363d', dim: '#484f58', blue: '#58a6ff', purple: '#a371f7', green: '#3fb950', orange: '#f0883e', yellow: '#f7c948' };
+
+function DiagramStep1() {
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <line x1="20" y1="38" x2="180" y2="38" stroke={D.axis} strokeWidth="1.5" />
+      <line x1="20" y1="33" x2="20" y2="43" stroke={D.dim} strokeWidth="1" />
+      <text x="20" y="28" textAnchor="middle" fill={D.dim} fontSize="8" fontFamily="monospace">0</text>
+      <line x1="80" y1="30" x2="80" y2="46" stroke={D.orange} strokeWidth="1.5" />
+      <text x="80" y="22" textAnchor="middle" fill={D.orange} fontSize="8.5" fontFamily="monospace" fontWeight="bold">toe</text>
+      <line x1="155" y1="30" x2="155" y2="46" stroke={D.blue} strokeWidth="1.5" />
+      <text x="155" y="22" textAnchor="middle" fill={D.blue} fontSize="8.5" fontFamily="monospace" fontWeight="bold">t</text>
+      <path d="M80,52 L155,52" stroke={D.green} strokeWidth="1.5" fill="none" />
+      <path d="M80,49 L80,55 M155,49 L155,55" stroke={D.green} strokeWidth="1" fill="none" />
+      <text x="117" y="66" textAnchor="middle" fill={D.green} fontSize="9" fontFamily="monospace" fontWeight="bold">tk = t − toe</text>
+    </svg>
+  );
+}
+
+function DiagramStep2() {
+  const cx = 80, cy = 40, r = 28;
+  const mDeg = 55;
+  const px = cx + r * Math.cos(-mDeg * DEG);
+  const py = cy + r * Math.sin(-mDeg * DEG);
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <circle cx={cx} cy={cy} r={r} stroke={D.grid} fill="none" />
+      <circle cx={cx} cy={cy} r="2" fill={D.dim} />
+      <line x1={cx} y1={cy} x2={cx + r} y2={cy} stroke={D.dim} strokeWidth="0.5" strokeDasharray="2,2" />
+      <path d={`M${cx + r},${cy} A${r},${r} 0 0,0 ${px.toFixed(1)},${py.toFixed(1)}`} stroke={D.purple} strokeWidth="1.5" fill="none" />
+      <text x={cx + r + 8} y={cy - 6} fill={D.purple} fontSize="9" fontFamily="monospace" fontWeight="bold">M</text>
+      <circle cx={px} cy={py} r="4" fill={D.yellow} />
+      <line x1={cx} y1={cy} x2={px} y2={py} stroke={D.yellow} strokeWidth="1" strokeOpacity="0.6" />
+      <text x="135" y="20" fill={D.blue} fontSize="8" fontFamily="monospace">M = M₀ + n·tk</text>
+      <text x="135" y="32" fill={D.dim} fontSize="8" fontFamily="monospace">n = √(μ/a³)</text>
+      <text x="135" y="50" fill={D.orange} fontSize="8" fontFamily="monospace">ruch jednostajny</text>
+      <text x="135" y="62" fill={D.orange} fontSize="8" fontFamily="monospace">(przybliżenie)</text>
+    </svg>
+  );
+}
+
+function DiagramStep3() {
+  const cx = 75, cy = 42, rx = 55, ry = 30;
+  const foci = cx + Math.sqrt(rx * rx - ry * ry) * 0.5;
+  const eDeg = 50;
+  const px = cx + rx * Math.cos(-eDeg * DEG);
+  const py = cy + ry * Math.sin(-eDeg * DEG);
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
+      <circle cx={foci} cy={cy} r="2.5" fill={D.orange} />
+      <line x1={cx} y1={cy} x2={px} y2={py} stroke={D.purple} strokeWidth="1.2" />
+      <text x={cx + 8} y={cy - 6} fill={D.purple} fontSize="8" fontFamily="monospace">E</text>
+      <circle cx={px} cy={py} r="4" fill={D.yellow} />
+      <text x="148" y="22" fill={D.blue} fontSize="8" fontFamily="monospace">E − e·sinE = M</text>
+      <text x="148" y="38" fill={D.green} fontSize="8" fontFamily="monospace">iteracja:</text>
+      <text x="148" y="50" fill={D.green} fontSize="8" fontFamily="monospace">Eₙ₊₁ = Eₙ +</text>
+      <text x="148" y="62" fill={D.green} fontSize="8" fontFamily="monospace">(M−Eₙ+e·sinEₙ)</text>
+      <text x="148" y="74" fill={D.green} fontSize="8" fontFamily="monospace">/(1−e·cosEₙ)</text>
+    </svg>
+  );
+}
+
+function DiagramStep4() {
+  const cx = 75, cy = 42, rx = 52, ry = 30;
+  const foci = cx + Math.sqrt(rx * rx - ry * ry) * 0.5;
+  const eDeg = 50;
+  const px = cx + rx * Math.cos(-eDeg * DEG);
+  const py = cy + ry * Math.sin(-eDeg * DEG);
+  const nuDeg = 68;
+  const pnx = foci + 44 * Math.cos(-nuDeg * DEG);
+  const pny = cy + 44 * Math.sin(-nuDeg * DEG);
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
+      <circle cx={foci} cy={cy} r="2.5" fill={D.orange} />
+      <line x1={cx} y1={cy} x2={px} y2={py} stroke={D.purple} strokeWidth="1.2" strokeDasharray="3,2" />
+      <text x={cx + 8} y={cy - 4} fill={D.purple} fontSize="8" fontFamily="monospace">E</text>
+      <line x1={foci} y1={cy} x2={pnx} y2={pny} stroke={D.blue} strokeWidth="1.5" />
+      <text x={foci + 8} y={cy - 10} fill={D.blue} fontSize="8" fontFamily="monospace">ν</text>
+      <circle cx={px} cy={py} r="4" fill={D.yellow} />
+      <text x="148" y="20" fill={D.dim} fontSize="8" fontFamily="monospace">M ≠ ν</text>
+      <text x="148" y="35" fill={D.blue} fontSize="8" fontFamily="monospace">ν = atan2(</text>
+      <text x="148" y="47" fill={D.blue} fontSize="8" fontFamily="monospace">√(1−e²)sinE,</text>
+      <text x="148" y="59" fill={D.blue} fontSize="8" fontFamily="monospace">cosE − e)</text>
+      <text x="148" y="74" fill={D.orange} fontSize="8" fontFamily="monospace">ognisko F</text>
+    </svg>
+  );
+}
+
+function DiagramStep5() {
+  const cx = 75, cy = 42, rx = 52, ry = 30;
+  const foci = cx + Math.sqrt(rx * rx - ry * ry) * 0.5;
+  const omegaDeg = 30;
+  const nuDeg = 65;
+  const phiDeg = omegaDeg + nuDeg;
+  const asc = { x: cx - rx, y: cy };
+  const omegaP = { x: foci + 46 * Math.cos(-omegaDeg * DEG), y: cy + 46 * Math.sin(-omegaDeg * DEG) };
+  const phiP = { x: foci + 42 * Math.cos(-phiDeg * DEG), y: cy + 42 * Math.sin(-phiDeg * DEG) };
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
+      <circle cx={foci} cy={cy} r="2.5" fill={D.orange} />
+      <line x1={foci} y1={cy} x2={asc.x} y2={asc.y} stroke={D.dim} strokeWidth="1" strokeDasharray="3,2" />
+      <text x={asc.x - 12} y={asc.y + 4} fill={D.dim} fontSize="7" fontFamily="monospace">węzeł</text>
+      <line x1={foci} y1={cy} x2={omegaP.x} y2={omegaP.y} stroke={D.orange} strokeWidth="1.2" />
+      <text x={omegaP.x + 3} y={omegaP.y - 3} fill={D.orange} fontSize="8" fontFamily="monospace">ω</text>
+      <line x1={foci} y1={cy} x2={phiP.x} y2={phiP.y} stroke={D.blue} strokeWidth="1.5" />
+      <circle cx={phiP.x} cy={phiP.y} r="4" fill={D.yellow} />
+      <text x="148" y="22" fill={D.blue} fontSize="8" fontFamily="monospace">φ = ν + ω</text>
+      <text x="148" y="38" fill={D.orange} fontSize="8" fontFamily="monospace">ω: perygeum</text>
+      <text x="148" y="50" fill={D.orange} fontSize="8" fontFamily="monospace">od węzła wst.</text>
+      <text x="148" y="66" fill={D.green} fontSize="8" fontFamily="monospace">φ: pozycja</text>
+      <text x="148" y="78" fill={D.green} fontSize="8" fontFamily="monospace">od węzła</text>
+    </svg>
+  );
+}
+
+function DiagramStep6() {
+  const cx = 75, cy = 42, rx = 52, ry = 30;
+  const foci = cx + Math.sqrt(rx * rx - ry * ry) * 0.5;
+  const uDeg = 60;
+  const px = cx + rx * Math.cos(-uDeg * DEG) * 0.98;
+  const py = cy + ry * Math.sin(-uDeg * DEG) * 0.98;
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
+      <circle cx={foci} cy={cy} r="2.5" fill={D.orange} />
+      <line x1={foci} y1={cy} x2={px} y2={py} stroke={D.green} strokeWidth="1.8" />
+      <text x={(foci + px) / 2 + 4} y={(cy + py) / 2 - 4} fill={D.green} fontSize="9" fontFamily="monospace" fontWeight="bold">r</text>
+      <circle cx={cx - rx} cy={cy} r="4" fill={D.blue} />
+      <text x={cx - rx - 3} y={cy - 8} fill={D.blue} fontSize="7" fontFamily="monospace">perygeum</text>
+      <circle cx={cx + rx} cy={cy} r="4" fill={D.dim} />
+      <text x={cx + rx - 10} y={cy + 14} fill={D.dim} fontSize="7" fontFamily="monospace">apogeum</text>
+      <circle cx={px} cy={py} r="4" fill={D.yellow} />
+      <text x="148" y="22" fill={D.green} fontSize="8" fontFamily="monospace">r = a(1−e·cosE)</text>
+      <text x="148" y="36" fill={D.dim} fontSize="8" fontFamily="monospace">+ Δr (J₂)</text>
+      <text x="148" y="56" fill={D.blue} fontSize="8" fontFamily="monospace">r_min = a(1−e)</text>
+      <text x="148" y="70" fill={D.dim} fontSize="8" fontFamily="monospace">r_max = a(1+e)</text>
+    </svg>
+  );
+}
+
+function DiagramStep7() {
+  const cx = 75, cy = 42, rx = 52, ry = 32;
+  const uDeg = 55;
+  const px = cx + rx * Math.cos(-uDeg * DEG);
+  const py = cy + ry * Math.sin(-uDeg * DEG);
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} stroke={D.grid} fill="none" />
+      <line x1={cx - rx - 5} y1={cy} x2={cx + rx + 10} y2={cy} stroke={D.orange} strokeWidth="1" />
+      <text x={cx + rx + 12} y={cy + 4} fill={D.orange} fontSize="8" fontFamily="monospace">x'</text>
+      <line x1={cx} y1={cy + ry + 5} x2={cx} y2={cy - ry - 5} stroke={D.green} strokeWidth="1" />
+      <text x={cx + 4} y={cy - ry - 7} fill={D.green} fontSize="8" fontFamily="monospace">y'</text>
+      <circle cx={cx} cy={cy} r="2" fill={D.dim} />
+      <line x1={cx} y1={cy} x2={px} y2={py} stroke={D.dim} strokeWidth="0.8" strokeDasharray="2,2" />
+      <line x1={px} y1={cy} x2={px} y2={py} stroke={D.orange} strokeWidth="1" strokeDasharray="2,2" />
+      <line x1={cx} y1={py} x2={px} y2={py} stroke={D.green} strokeWidth="1" strokeDasharray="2,2" />
+      <circle cx={px} cy={py} r="4" fill={D.yellow} />
+      <text x="148" y="22" fill={D.orange} fontSize="8" fontFamily="monospace">x' = r·cos(u)</text>
+      <text x="148" y="36" fill={D.green} fontSize="8" fontFamily="monospace">y' = r·sin(u)</text>
+      <text x="148" y="56" fill={D.dim} fontSize="8" fontFamily="monospace">u = φ + Δu</text>
+      <text x="148" y="70" fill={D.dim} fontSize="7" fontFamily="monospace">płaszcz. orbity</text>
+    </svg>
+  );
+}
+
+function DiagramStep8() {
+  const cx = 90, cy = 44;
+  const r = 34;
+  const omegaDeg = 40;
+  const ox = cx + r * Math.cos(omegaDeg * DEG);
+  const oy = cy - r * Math.sin(omegaDeg * DEG);
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <ellipse cx={cx} cy={cy} rx={r} ry={r * 0.35} stroke={D.dim} fill="none" strokeDasharray="4,2" />
+      <circle cx={cx} cy={cy} r={r} stroke={D.grid} fill="none" />
+      <line x1={cx - r - 5} y1={cy} x2={cx + r + 10} y2={cy} stroke={D.dim} strokeWidth="1" />
+      <text x={cx + r + 12} y={cy + 4} fill={D.dim} fontSize="7" fontFamily="monospace">X_ECEF</text>
+      <line x1={cx} y1={cy + r + 5} x2={cx} y2={cy - r - 5} stroke={D.dim} strokeWidth="1" />
+      <text x={cx + 3} y={cy - r - 7} fill={D.dim} fontSize="7" fontFamily="monospace">Y_ECEF</text>
+      <path d={`M${cx + r},${cy} A${r},${r} 0 0,0 ${ox.toFixed(1)},${oy.toFixed(1)}`} stroke={D.purple} strokeWidth="1.5" fill="none" />
+      <text x={cx + r + 4} y={cy - 12} fill={D.purple} fontSize="9" fontFamily="monospace" fontWeight="bold">Ω</text>
+      <line x1={cx} y1={cy} x2={ox} y2={oy} stroke={D.blue} strokeWidth="1.5" />
+      <circle cx={ox} cy={oy} r="3.5" fill={D.blue} />
+      <text x={ox + 5} y={oy - 2} fill={D.blue} fontSize="7" fontFamily="monospace">węzeł ↑</text>
+      <text x="150" y="25" fill={D.purple} fontSize="7" fontFamily="monospace">Ω=Ω₀+(Ω̇−ωₑ)tk</text>
+      <text x="150" y="37" fill={D.orange} fontSize="7" fontFamily="monospace">− ωₑ·toe</text>
+    </svg>
+  );
+}
+
+function DiagramStep9() {
+  const cx = 75, cy = 45;
+  return (
+    <svg viewBox="0 0 200 80" className="w-full" style={{ height: 80 }}>
+      <rect width="200" height="80" fill={D.bg} rx="4" />
+      <line x1={cx} y1={cy} x2={cx + 52} y2={cy} stroke={D.orange} strokeWidth="1.5" />
+      <text x={cx + 55} y={cy + 4} fill={D.orange} fontSize="8" fontFamily="monospace" fontWeight="bold">X</text>
+      <line x1={cx} y1={cy} x2={cx - 28} y2={cy + 22} stroke={D.green} strokeWidth="1.5" />
+      <text x={cx - 35} y={cy + 32} fill={D.green} fontSize="8" fontFamily="monospace" fontWeight="bold">Y</text>
+      <line x1={cx} y1={cy} x2={cx} y2={cy - 38} stroke={D.blue} strokeWidth="1.5" />
+      <text x={cx + 4} y={cy - 40} fill={D.blue} fontSize="8" fontFamily="monospace" fontWeight="bold">Z</text>
+      <ellipse cx={cx + 5} cy={cy - 8} rx={44} ry={24} stroke={D.purple} fill="none" strokeDasharray="3,2"
+        transform={`rotate(-18,${cx + 5},${cy - 8})`} />
+      <circle cx={cx + 36} cy={cy - 28} r="5" fill={D.yellow} />
+      <text x="140" y="22" fill={D.yellow} fontSize="8" fontFamily="monospace">satelita</text>
+      <text x="140" y="38" fill={D.purple} fontSize="8" fontFamily="monospace">płaszcz.</text>
+      <text x="140" y="50" fill={D.purple} fontSize="8" fontFamily="monospace">orbity</text>
+      <text x="140" y="66" fill={D.dim} fontSize="8" fontFamily="monospace">ECEF 3D</text>
+    </svg>
+  );
+}
+
+const DIAGRAMS = [
+  <DiagramStep1 key={1} />,
+  <DiagramStep2 key={2} />,
+  <DiagramStep3 key={3} />,
+  <DiagramStep4 key={4} />,
+  <DiagramStep5 key={5} />,
+  <DiagramStep6 key={6} />,
+  <DiagramStep7 key={7} />,
+  <DiagramStep8 key={8} />,
+  <DiagramStep9 key={9} />,
+];
+
+// ── Definicje kroków ─────────────────────────────────────────────────────────
 
 interface Step {
   title: string;
@@ -49,8 +293,8 @@ const STEP_DEFS: Step[] = [
   },
   {
     title: 'KROK 8: RAAN (Ω)',
-    formula: 'Ω = Ω₀ + (Ω̇−ωₑ)·tk',
-    explanation: 'Kąt węzła wstępującego. W ECEF odejmujemy obrót Ziemi (ωₑ).',
+    formula: 'Ω = Ω₀ + (Ω̇−ωₑ)·tk − ωₑ·toe',
+    explanation: 'Kąt węzła wstępującego. W ECEF odejmujemy obrót Ziemi (ωₑ). Człon −ωₑ·toe zakotwicza w epoce.',
   },
   {
     title: 'KROK 9: XYZ końcowe!',
@@ -59,10 +303,17 @@ const STEP_DEFS: Step[] = [
   },
 ];
 
+// ── Komponent ────────────────────────────────────────────────────────────────
+
 export function KeplerStepper() {
   const [step, setStep] = useState(1);
   const [autoRunning, setAutoRunning] = useState(false);
   const [autoTimer, setAutoTimer] = useState<ReturnType<typeof setInterval> | null>(null);
+  const [displayVals, setDisplayVals] = useState<Record<string, string>>({});
+
+  const prevStep = useRef(1);
+  const slideDir = useRef<1 | -1>(1);
+
   const { singleEph } = useSatelliteStore();
   const { timeHours } = useTimeStore();
 
@@ -81,6 +332,38 @@ export function KeplerStepper() {
     9: { X: `${(data.x / 1000).toFixed(0)}km`, Y: `${(data.y / 1000).toFixed(0)}km`, Z: `${(data.z / 1000).toFixed(0)}km` },
   };
 
+  // Animacja count-up wartości liczbowych przy zmianie kroku
+  useEffect(() => {
+    const targets = stepValues[step] ?? {};
+    const start = performance.now();
+
+    let rafId: number;
+    function frame(ts: number) {
+      const p = Math.min((ts - start) / 500, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      const next: Record<string, string> = {};
+      for (const [k, v] of Object.entries(targets)) {
+        const num = parseFloat(v);
+        if (isNaN(num)) { next[k] = v; continue; }
+        const suffix = v.replace(/[-\d.e+×⁻⁰¹²³⁴⁵⁶⁷⁸⁹]/g, '').trim();
+        const parts = v.split('.');
+        const decimals = parts.length > 1 ? parts[1].replace(/[^\d]/g, '').length : 0;
+        next[k] = `${(num * ease).toFixed(decimals)}${suffix}`;
+      }
+      setDisplayVals(next);
+      if (p < 1) rafId = requestAnimationFrame(frame);
+    }
+    rafId = requestAnimationFrame(frame);
+    return () => cancelAnimationFrame(rafId);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, tSec]);
+
+  function goToStep(n: number) {
+    slideDir.current = n > prevStep.current ? 1 : -1;
+    prevStep.current = n;
+    setStep(n);
+  }
+
   function startAuto() {
     if (autoRunning) {
       if (autoTimer) clearInterval(autoTimer);
@@ -89,7 +372,7 @@ export function KeplerStepper() {
       return;
     }
     setAutoRunning(true);
-    setStep(1);
+    goToStep(1);
     let cur = 1;
     const timer = setInterval(() => {
       cur++;
@@ -97,19 +380,20 @@ export function KeplerStepper() {
         clearInterval(timer);
         setAutoRunning(false);
         setAutoTimer(null);
-        setStep(9);
+        goToStep(9);
       } else {
-        setStep(cur);
+        goToStep(cur);
       }
     }, 2500);
     setAutoTimer(timer);
   }
 
   const s = STEP_DEFS[step - 1];
-  const vals = stepValues[step] ?? {};
+  const animName = slideDir.current > 0 ? 'stepSlideR' : 'stepSlideL';
 
   return (
     <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 font-mono text-xs">
+      <style>{SLIDE_STYLE}</style>
       <div className="text-[#6e7681] text-[10px] uppercase tracking-widest mb-3">Kalkulator orbitalny</div>
 
       {/* Track */}
@@ -121,7 +405,7 @@ export function KeplerStepper() {
           return (
             <div key={n} className="flex items-center">
               <button
-                onClick={() => setStep(n)}
+                onClick={() => goToStep(n)}
                 className={`w-6 h-6 rounded-full text-[10px] font-bold flex-shrink-0 border transition-colors ${
                   isActive ? 'bg-[#1f6feb] border-[#58a6ff] text-white' :
                   isDone   ? 'bg-[#238636] border-[#2ea043] text-white' :
@@ -141,32 +425,43 @@ export function KeplerStepper() {
       {/* Pasek postępu */}
       <div className="h-0.5 bg-[#21262d] rounded mb-3">
         <div
-          className="h-full bg-[#1f6feb] rounded transition-all"
+          className="h-full bg-[#1f6feb] rounded transition-all duration-300"
           style={{ width: `${((step - 1) / 8) * 100}%` }}
         />
       </div>
 
-      {/* Treść */}
-      <div className="mb-3">
-        <div className="text-[#f0f6fc] font-bold text-xs mb-1">{s.title}</div>
-        <pre className="text-[#a371f7] text-xs bg-[#0d1117] px-2.5 py-2 rounded-lg mb-1.5 whitespace-pre-wrap">{s.formula}</pre>
-        <div className="text-[#8b949e] text-xs leading-relaxed">{s.explanation}</div>
-      </div>
+      {/* Treść + diagram z animacją przejścia */}
+      <div
+        key={step}
+        style={{ animation: `${animName} 0.3s ease-out` }}
+      >
+        {/* Diagram */}
+        <div className="mb-3 rounded-lg overflow-hidden">
+          {DIAGRAMS[step - 1]}
+        </div>
 
-      {/* Wartości */}
-      <div className="grid grid-cols-3 gap-1.5 mb-3">
-        {Object.entries(vals).map(([k, v]) => (
-          <div key={k} className="bg-[#0d1117] rounded-lg px-2 py-2 text-center">
-            <div className="text-[#6e7681] text-[10px] mb-0.5">{k}</div>
-            <div className="text-[#58a6ff] text-xs font-bold truncate">{v}</div>
-          </div>
-        ))}
+        {/* Tekst */}
+        <div className="mb-3">
+          <div className="text-[#f0f6fc] font-bold text-xs mb-1">{s.title}</div>
+          <pre className="text-[#a371f7] text-xs bg-[#0d1117] px-2.5 py-2 rounded-lg mb-1.5 whitespace-pre-wrap">{s.formula}</pre>
+          <div className="text-[#8b949e] text-xs leading-relaxed">{s.explanation}</div>
+        </div>
+
+        {/* Wartości */}
+        <div className="grid grid-cols-3 gap-1.5 mb-3">
+          {Object.entries(displayVals).map(([k, v]) => (
+            <div key={k} className="bg-[#0d1117] rounded-lg px-2 py-2 text-center">
+              <div className="text-[#6e7681] text-[10px] mb-0.5">{k}</div>
+              <div className="text-[#58a6ff] text-xs font-bold truncate">{v}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Nawigacja */}
       <div className="flex gap-1.5">
         <button
-          onClick={() => setStep(s => Math.max(1, s - 1))}
+          onClick={() => goToStep(Math.max(1, step - 1))}
           disabled={step === 1}
           className="px-3 py-1.5 rounded-lg bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-40 text-xs"
         >
@@ -181,7 +476,7 @@ export function KeplerStepper() {
           {autoRunning ? '⏸ Stop' : '▶ Auto'}
         </button>
         <button
-          onClick={() => setStep(s => Math.min(9, s + 1))}
+          onClick={() => goToStep(Math.min(9, step + 1))}
           disabled={step === 9}
           className="px-3 py-1.5 rounded-lg bg-[#21262d] hover:bg-[#30363d] text-[#8b949e] disabled:opacity-40 text-xs"
         >
