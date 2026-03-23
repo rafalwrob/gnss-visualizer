@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { RawMeasurement, SatelliteObservation } from '../types/rawMeasurement';
 import type { PositionFix, ProtocolAdapter } from '../services/parsers/protocolAdapter';
+import type { SatelliteRecord } from '../types/satellite';
 
 export type ReceiverStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -17,7 +18,10 @@ interface ReceiverState {
   bytesReceived: number;
   messagesDecoded: number;
   ephemerisCount: number;
+  almanacCount: number;
   fileProgress: number; // 0-100
+  displaySource: 'ephemeris' | 'almanac';
+  almanacSatellites: SatelliteRecord[];
 
   setStatus: (s: ReceiverStatus, err?: string) => void;
   setActiveProtocol: (name: string) => void;
@@ -29,7 +33,10 @@ interface ReceiverState {
   incrementBytes: (n: number) => void;
   incrementMessages: (n: number) => void;
   incrementEphemeris: (n: number) => void;
+  incrementAlmanac: (n: number) => void;
   setFileProgress: (pct: number) => void;
+  setDisplaySource: (src: 'ephemeris' | 'almanac') => void;
+  setAlmanacSatellites: (sats: SatelliteRecord[]) => void;
   reset: () => void;
 }
 
@@ -44,7 +51,10 @@ export const useReceiverStore = create<ReceiverState>((set) => ({
   bytesReceived: 0,
   messagesDecoded: 0,
   ephemerisCount: 0,
+  almanacCount: 0,
   fileProgress: 0,
+  displaySource: 'ephemeris',
+  almanacSatellites: [],
 
   setStatus: (s, err) => set({ status: s, errorMessage: err ?? '' }),
   setActiveProtocol: (name) => set({ activeProtocol: name }),
@@ -62,10 +72,15 @@ export const useReceiverStore = create<ReceiverState>((set) => ({
   incrementBytes: (n) => set(st => ({ bytesReceived: st.bytesReceived + n })),
   incrementMessages: (n) => set(st => ({ messagesDecoded: st.messagesDecoded + n })),
   incrementEphemeris: (n) => set(st => ({ ephemerisCount: st.ephemerisCount + n })),
+  incrementAlmanac: (n) => set(st => ({ almanacCount: st.almanacCount + n })),
   setFileProgress: (pct) => set({ fileProgress: pct }),
+  setDisplaySource: (src) => set({ displaySource: src }),
+  setAlmanacSatellites: (sats) => set({ almanacSatellites: sats }),
   reset: () => set({
     status: 'disconnected', errorMessage: '',
     recentMeasurements: [], recentObservations: [], positionFix: null,
-    bytesReceived: 0, messagesDecoded: 0, ephemerisCount: 0, fileProgress: 0,
+    bytesReceived: 0, messagesDecoded: 0, ephemerisCount: 0, almanacCount: 0, fileProgress: 0,
+    displaySource: 'ephemeris',
+    almanacSatellites: [],
   }),
 }));

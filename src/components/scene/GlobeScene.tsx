@@ -15,6 +15,7 @@ import { useTimeStore } from '../../store/timeStore';
 import { useUiStore } from '../../store/uiStore';
 import { useObserverStore } from '../../store/observerStore';
 import { useIonoStore } from '../../store/ionoStore';
+import { useReceiverStore } from '../../store/receiverStore';
 import { OMEGA_E } from '../../constants/gnss';
 import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import { satElevAz, latLonAltToEcef } from '../../services/coordinates/ecefEnu';
@@ -113,8 +114,8 @@ function ObserverMarker() {
 
   return (
     <mesh ref={meshRef}>
-      <sphereGeometry args={[0.015, 10, 10]} />
-      <meshBasicMaterial color="#ff4444" />
+      <sphereGeometry args={[0.004, 8, 8]} />
+      <meshBasicMaterial color="#ff2222" />
     </mesh>
   );
 }
@@ -122,12 +123,20 @@ function ObserverMarker() {
 /** Zawartość sceny 3D */
 function SceneContent() {
   const { satellites, selectedIndex, mode, singleEph, selectSatellite } = useSatelliteStore();
-  const { showHarmonics, showGroundTrack, useEcef, showEciAxes, setActiveTab } = useUiStore();
+  const { showHarmonics, showGroundTrack, useEcef, showEciAxes, setActiveTab, activeTab } = useUiStore();
   const { enabled: obsEnabled, allSats, enabledSystems } = useObserverStore();
   const { enabled: ionoEnabled } = useIonoStore();
+  const receiverObs = useReceiverStore(s => s.recentObservations);
+  const receiverFix = useReceiverStore(s => s.positionFix);
+  const receiverSource = useReceiverStore(s => s.displaySource);
+  const receiverAlmanacSats = useReceiverStore(s => s.almanacSatellites);
 
   const visibilityActive = obsEnabled && allSats.length > 0;
   const filteredObsSats = allSats.filter(s => enabledSystems[s.system]);
+  const receiverActive = activeTab === 'receiver' && !!receiverFix;
+  const receiverPrns = new Set(receiverObs.map(obs => obs.prn));
+  const receiverPool = receiverSource === 'almanac' ? receiverAlmanacSats : satellites;
+  const receiverSats = receiverPool.filter(s => receiverPrns.has(s.prn));
   const sats = mode === 'constellation' ? satellites : [];
 
   return (
@@ -141,8 +150,38 @@ function SceneContent() {
       <Earth />
       {ionoEnabled && <IonoLayer />}
 
+      {receiverActive && (
+        <>
+          {receiverSats.map((sat) => (
+            <group key={sat.prn}>
+              <OrbitTrail eph={sat.eph} color={sat.color} harmonics={showHarmonics} useEcef={useEcef} selected={false} />
+              {showGroundTrack && (
+                <EarthAligned>
+                  <GroundTrack eph={sat.eph} color={sat.color} harmonics={showHarmonics} />
+                </EarthAligned>
+              )}
+              <SatelliteMarker
+                eph={sat.eph}
+                color={sat.color}
+                selected={false}
+                onClick={() => {
+                  const store = useSatelliteStore.getState();
+                  const existingIdx = store.satellites.findIndex(s => s.prn === sat.prn);
+                  if (existingIdx >= 0) store.selectSatellite(existingIdx);
+                  setActiveTab('satellites');
+                }}
+              />
+            </group>
+          ))}
+          <EarthAligned>
+            <ObserverMarker />
+            <EnuAxes />
+          </EarthAligned>
+        </>
+      )}
+
       {/* === TRYB WIDOCZNOŚCI — wszystkie konstelacje, tylko nad horyzontem === */}
-      {visibilityActive && (
+      {visibilityActive && !receiverActive && (
         <>
           {filteredObsSats.map((sat) => (
             <SatVisibilityGate key={sat.prn} eph={sat.eph}>
@@ -180,7 +219,7 @@ function SceneContent() {
       )}
 
       {/* === TRYB NORMALNY — pojedynczy satelita lub konstelacja === */}
-      {!visibilityActive && mode === 'constellation' && sats.map((sat, i) => (
+      {!visibilityActive && !receiverActive && mode === 'constellation' && sats.map((sat, i) => (
         <group key={sat.prn}>
           {showHarmonics && (
             <OrbitTrail
@@ -219,7 +258,7 @@ function SceneContent() {
         </group>
       ))}
 
-      {!visibilityActive && mode === 'single' && (
+      {!visibilityActive && !receiverActive && mode === 'single' && (
         <group>
           {showHarmonics && (
             <OrbitTrail eph={singleEph} color="#484f58" harmonics={false} useEcef={useEcef} ghost />

@@ -13,10 +13,11 @@ import { useUiStore } from '../store/uiStore';
 import type { LeftTab } from '../store/uiStore';
 import { useObserverStore } from '../store/observerStore';
 
-// ── Toggle komponent ──────────────────────────────────────────────────────────
-
 function Toggle({
-  label, hint, value, onChange,
+  label,
+  hint,
+  value,
+  onChange,
 }: { label: string; hint?: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="block cursor-pointer">
@@ -41,29 +42,30 @@ function SettingsPanel() {
     showSignalLines, setShowSignalLines,
     showEnuAxes, setShowEnuAxes,
   } = useUiStore();
+
   return (
     <div className="space-y-4 font-mono">
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
         <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Wizualizacja</div>
-        <Toggle label="Ślad naziemny" value={showGroundTrack} onChange={setShowGroundTrack} />
+        <Toggle label="Slad naziemny" value={showGroundTrack} onChange={setShowGroundTrack} />
         <Toggle
-          label="Osie układu (ECI/ECEF)"
-          hint="Czerwona=X, Zielona=Z (N), Niebieska=-Y"
+          label="Osie ukladu (ECI/ECEF)"
+          hint="Czerwona=X, Zielona=Z, Niebieska=-Y"
           value={showEciAxes}
           onChange={setShowEciAxes}
         />
       </div>
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Tryb widoczności</div>
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Tryb widocznosci</div>
         <Toggle
-          label="Linie sygnałowe"
-          hint="Linie obserwator↔satelity (pulsujące)"
+          label="Linie sygnalowe"
+          hint="Linie obserwator-satelita"
           value={showSignalLines}
           onChange={setShowSignalLines}
         />
         <Toggle
           label="Osie ENU"
-          hint="E (wsch.) · N (płn.) · U (góra) przy obserwatorze"
+          hint="E, N, U przy obserwatorze"
           value={showEnuAxes}
           onChange={setShowEnuAxes}
         />
@@ -72,52 +74,45 @@ function SettingsPanel() {
   );
 }
 
-// ── Konfiguracja nawigacji (bez Widoczność — jest w SystemPanel) ──────────────
-
 const NAV_TABS: { id: LeftTab; label: string }[] = [
-  { id: 'orbital',    label: 'Parametry' },
+  { id: 'orbital', label: 'Parametry' },
   { id: 'satellites', label: 'Satelity' },
-  { id: 'kepler',     label: 'Kalkulator' },
-  { id: 'receiver',   label: 'Odbiornik' },
-  { id: 'signals',    label: 'Sygnały' },
-  { id: 'settings',   label: 'Ustawienia' },
+  { id: 'kepler', label: 'Kalkulator' },
+  { id: 'receiver', label: 'Odbiornik' },
+  { id: 'signals', label: 'Sygnaly' },
+  { id: 'settings', label: 'Ustawienia' },
 ];
 
 const TAB_TITLES: Partial<Record<LeftTab, string>> = {
-  orbital:    'Parametry orbity',
-  satellites: 'Lista satelitów',
-  kepler:     'Kalkulator Keplera',
-  visibility: 'Widoczność satelitów',
-  receiver:   'Odbiornik GNSS',
-  signals:    'Pasma sygnałów GNSS',
-  settings:   'Ustawienia sceny',
+  orbital: 'Parametry orbity',
+  satellites: 'Lista satelitow',
+  kepler: 'Kalkulator Keplera',
+  visibility: 'Widocznosc satelitow',
+  receiver: 'Odbiornik GNSS',
+  signals: 'Pasma sygnalow GNSS',
+  settings: 'Ustawienia sceny',
 };
-
-// ── Główny komponent ──────────────────────────────────────────────────────────
 
 export function Visualizer() {
   const { onlineMode, activeTab, setActiveTab, useEcef, setUseEcef } = useUiStore();
   const [panelWide, setPanelWide] = useState(false);
   const { enabled: obsEnabled, isFetching } = useObserverStore();
+  const receiverLocked = activeTab === 'receiver';
 
-  // Gdy tryb widoczności włączony → auto-otwórz prawy panel z wynikami
   useEffect(() => {
+    if (receiverLocked) return;
     if (obsEnabled) {
       setActiveTab('visibility');
     } else if (activeTab === 'visibility' && !isFetching) {
       setActiveTab(null);
     }
-  }, [obsEnabled, isFetching]);
+  }, [obsEnabled, isFetching, activeTab, receiverLocked, setActiveTab]);
 
   const currentTitle = activeTab ? TAB_TITLES[activeTab] : null;
 
   return (
     <div className="flex h-screen bg-[#0a0e17] text-[#e6edf3] overflow-hidden">
-
-      {/* ═══ LEWA KOLUMNA — kontrolki + nawigacja ═══ */}
       <div className="w-72 flex-shrink-0 flex flex-col border-r border-[#21262d] bg-[#0d1117]">
-
-        {/* Nagłówek */}
         <div className="px-4 py-3.5 border-b border-[#21262d] flex-shrink-0">
           <div className="flex items-center justify-between">
             <span className="text-[#58a6ff] font-bold text-base tracking-wide font-mono">GNSS Visualizer</span>
@@ -131,7 +126,6 @@ export function Visualizer() {
           <div className="text-[#6e7681] text-[11px] font-mono mt-0.5">3D Satellite Navigator</div>
         </div>
 
-        {/* ECI / ECEF — zawsze widoczne */}
         <div className="flex-shrink-0 px-3 py-2 border-b border-[#21262d]">
           <div className="flex gap-1.5">
             {(['ECI', 'ECEF'] as const).map(sys => {
@@ -152,91 +146,84 @@ export function Visualizer() {
             })}
           </div>
           <div className="text-[10px] text-[#484f58] font-mono mt-1 text-center">
-            {useEcef ? 'ECEF — stały z Ziemią' : 'ECI — inercjalny, czyste elipsy'}
+            {useEcef ? 'ECEF - staly z Ziemia' : 'ECI - inercjalny, czyste elipsy'}
           </div>
         </div>
 
-        {/* SystemPanel — zawsze widoczny */}
         <div className="flex-shrink-0 px-3 pt-3 pb-0">
           <SystemPanel />
         </div>
 
-        {/* Kontrolki zależne od trybu — przewijalne */}
         <div className="flex-1 min-h-0 overflow-y-auto px-3 py-3 border-b border-[#21262d]">
-          {obsEnabled ? <VisibilityControls /> : <TimeControl />}
+          {obsEnabled && !receiverLocked ? <VisibilityControls /> : <TimeControl />}
         </div>
 
-        {/* Siatka nawigacyjna 2×3 (bez Widoczność) */}
         <div className="flex-shrink-0 px-3 py-3">
           <div className="text-[#484f58] text-[10px] uppercase tracking-widest font-mono mb-2 px-0.5">Widoki</div>
           <div className="grid grid-cols-2 gap-1.5">
-            {NAV_TABS.map(t => (
-              <button
-                key={t.id}
-                onClick={() => setActiveTab(activeTab === t.id ? null : t.id)}
-                className={`py-3 rounded-lg text-[13px] font-mono font-medium border transition-all ${
-                  activeTab === t.id
-                    ? 'bg-[#1f6feb]/20 border-[#1f6feb] text-[#58a6ff]'
-                    : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/50 hover:text-[#c9d1d9]'
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
+            {NAV_TABS.map(t => {
+              const disabled = receiverLocked && t.id !== 'receiver';
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => !disabled && setActiveTab(activeTab === t.id ? null : t.id)}
+                  disabled={disabled}
+                  className={`py-3 rounded-lg text-[13px] font-mono font-medium border transition-all ${
+                    activeTab === t.id
+                      ? 'bg-[#1f6feb]/20 border-[#1f6feb] text-[#58a6ff]'
+                      : 'bg-[#161b22] border-[#30363d] text-[#8b949e] hover:border-[#58a6ff]/50 hover:text-[#c9d1d9] disabled:opacity-40 disabled:hover:border-[#30363d] disabled:hover:text-[#8b949e]'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
           </div>
         </div>
-
       </div>
 
-      {/* ═══ CENTRUM — scena 3D ═══ */}
       <div className="flex-1 relative min-w-0">
         <GlobeScene />
         <div className="absolute bottom-2 right-3 text-[10px] text-[#21262d] font-mono pointer-events-none select-none">
-          GNSS Visualizer · α
+          GNSS Visualizer · alpha
         </div>
       </div>
 
-      {/* ═══ PRAWA SZUFLADA — zawartość zakładki ═══ */}
       {activeTab && currentTitle && (
         <div
           className="flex-shrink-0 flex flex-col border-l border-[#21262d] bg-[#0d1117] transition-[width] duration-200"
           style={{ width: panelWide ? 680 : 400 }}
         >
-
-          {/* Nagłówek panelu */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#21262d] flex-shrink-0">
             <div className="text-[#e6edf3] font-bold text-base font-mono">{currentTitle}</div>
             <div className="flex items-center gap-1">
               <button
                 onClick={() => setPanelWide(w => !w)}
-                title={panelWide ? 'Zwęź panel' : 'Rozszerz panel'}
+                title={panelWide ? 'Zwez panel' : 'Rozszerz panel'}
                 className="w-7 h-7 flex items-center justify-center rounded-md text-[#6e7681] hover:text-[#e6edf3] hover:bg-[#21262d] transition-colors text-sm"
               >
-                {panelWide ? '⟩' : '⟨'}
+                {panelWide ? '<' : '>'}
               </button>
               <button
                 onClick={() => setActiveTab(null)}
                 className="w-7 h-7 flex items-center justify-center rounded-md text-[#6e7681] hover:text-[#e6edf3] hover:bg-[#21262d] transition-colors text-lg leading-none"
               >
-                ✕
+                x
               </button>
             </div>
           </div>
 
-          {/* Zawartość — przewijalna */}
           <div className="flex-1 overflow-y-auto px-5 py-4">
-            {activeTab === 'orbital'    && <OrbitalElements />}
+            {activeTab === 'orbital' && <OrbitalElements />}
             {activeTab === 'satellites' && <SatelliteList />}
-            {activeTab === 'kepler'     && <KeplerStepper />}
+            {activeTab === 'kepler' && <KeplerStepper />}
             {activeTab === 'visibility' && <VisibilityPanel />}
-            {activeTab === 'receiver'   && <ReceiverPanel />}
-            {activeTab === 'signals'    && <FrequencyPanel />}
-            {activeTab === 'settings'   && <SettingsPanel />}
+            {activeTab === 'receiver' && <ReceiverPanel />}
+            {activeTab === 'signals' && <FrequencyPanel />}
+            {activeTab === 'settings' && <SettingsPanel />}
           </div>
-
         </div>
       )}
-
     </div>
   );
 }

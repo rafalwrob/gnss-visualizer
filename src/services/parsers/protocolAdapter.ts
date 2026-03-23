@@ -4,6 +4,11 @@ import type { RawMeasurement, SatelliteObservation } from '../../types/rawMeasur
 import type { KlobucharParams } from '../../types/ionosphere';
 
 export type { RawMeasurement, SatelliteObservation };
+export interface ParsedOrbitRecord {
+  prn: number;
+  system: GnssSystem;
+  eph: KeplerianEphemeris;
+}
 
 export interface PositionFix {
   lat: number;
@@ -17,7 +22,8 @@ export interface PositionFix {
 export interface ParsedData {
   measurements?: RawMeasurement[];
   observations?: SatelliteObservation[];
-  ephemerides?: Array<{ prn: number; system: GnssSystem; eph: KeplerianEphemeris }>;
+  ephemerides?: ParsedOrbitRecord[];
+  almanacs?: ParsedOrbitRecord[];
   positionFix?: PositionFix;
   klobuchar?: KlobucharParams;
 }

@@ -48,10 +48,115 @@ function splitSegments(points: { az: number; el: number }[]): { az: number; el: 
   return segments;
 }
 
+function SatDetailCard({ prn, obs }: { prn: string; obs: SkyPlotObs }) {
+  const measurements = useReceiverStore(s => s.recentMeasurements);
+  const color = GNSS_SYSTEMS[obs.system]?.color ?? '#8b949e';
+  const systemName = GNSS_SYSTEMS[obs.system]?.name ?? obs.system;
+
+  // Filtruj pomiary dla wybranego PRN, jeden wiersz per pasmo
+  const prefix: Record<GnssSystem, string> = {
+    gps: 'G', galileo: 'E', glonass: 'R', beidou: 'C', qzss: 'J', navic: 'I', sbas: 'S',
+  };
+  const satMeas = measurements.filter(m =>
+    `${prefix[m.system]}${String(m.prn).padStart(2, '0')}` === prn,
+  );
+
+  // Unikalne pasma z wartościami pseudodystansu i Dopplera
+  const bands = new Map<string, { pseudo: number[]; doppler: number[]; snr: number[] }>();
+  for (const m of satMeas) {
+    const b = m.freqBand;
+    if (!bands.has(b)) bands.set(b, { pseudo: [], doppler: [], snr: [] });
+    const entry = bands.get(b)!;
+    entry.pseudo.push(m.pseudorange);
+    if (m.doppler != null) entry.doppler.push(m.doppler);
+    entry.snr.push(m.snr);
+  }
+
+  const median = (arr: number[]) => {
+    if (!arr.length) return null;
+    const s = [...arr].sort((a, b) => a - b);
+    return s[Math.floor(s.length / 2)];
+  };
+
+  const snr = obs.snr ?? median(satMeas.map(m => m.snr ?? 0)) ?? 0;
+  const snrPct = Math.min(100, (snr / 60) * 100);
+  const snrColor = snr >= 40 ? '#3fb950' : snr >= 25 ? '#f7c948' : '#f85149';
+
+  const bandList = [...bands.entries()];
+
+  return (
+    <div
+      className="mt-3 bg-[#0d1117] border rounded-xl p-3 text-xs font-mono"
+      style={{ borderColor: color + '60' }}
+    >
+      {/* Nagłówek */}
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-bold" style={{ color }}>{prn}</span>
+        <span className="text-[#6e7681]">{systemName}</span>
+      </div>
+
+      {/* El / Az */}
+      <div className="grid grid-cols-2 gap-2 mb-2">
+        <div className="bg-[#161b22] rounded-lg px-2 py-1.5 text-center">
+          <div className="text-[#484f58] text-[10px] mb-0.5">Elewacja</div>
+          <div className="text-[#e6edf3] font-bold">{obs.elevation.toFixed(1)}°</div>
+        </div>
+        <div className="bg-[#161b22] rounded-lg px-2 py-1.5 text-center">
+          <div className="text-[#484f58] text-[10px] mb-0.5">Azymut</div>
+          <div className="text-[#e6edf3] font-bold">{obs.azimuth.toFixed(0)}°</div>
+        </div>
+      </div>
+
+      {/* C/N₀ */}
+      <div className="mb-2">
+        <div className="flex justify-between mb-0.5">
+          <span className="text-[#484f58]">C/N₀</span>
+          <span style={{ color: snrColor }} className="font-bold">{snr.toFixed(0)} dBHz</span>
+        </div>
+        <div className="h-1.5 bg-[#21262d] rounded overflow-hidden">
+          <div className="h-full rounded transition-all" style={{ width: `${snrPct}%`, backgroundColor: snrColor }} />
+        </div>
+      </div>
+
+      {/* Pomiary per pasmo */}
+      {bandList.length > 0 && (
+        <div className="space-y-1">
+          {bandList.map(([band, data]) => {
+            const pseudo = median(data.pseudo);
+            const dop = median(data.doppler);
+            return (
+              <div key={band} className="bg-[#161b22] rounded-lg px-2 py-1">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="font-bold" style={{ color }}>{band}</span>
+                  {dop != null && (
+                    <span className={dop >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
+                      {dop >= 0 ? '+' : ''}{dop.toFixed(0)} Hz
+                    </span>
+                  )}
+                </div>
+                {pseudo != null && (
+                  <div className="text-[#8b949e]">
+                    ρ {(pseudo / 1000).toFixed(1)} km
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {bandList.length === 0 && (
+        <div className="text-[#484f58] text-center py-1">brak pomiarów</div>
+      )}
+    </div>
+  );
+}
+
 export function SkyPlot({ observations: propObs, arcs = [], size = 320 }: Props) {
   const storeObs = useReceiverStore(s => s.recentObservations);
   const observations: SkyPlotObs[] = propObs ?? storeObs;
   const [hovered, setHovered] = useState<string | null>(null);
+  const [selectedPrn, setSelectedPrn] = useState<string | null>(null);
 
   const CX = size / 2;
   const CY = size / 2;
@@ -62,6 +167,8 @@ export function SkyPlot({ observations: propObs, arcs = [], size = 320 }: Props)
     : propObs === undefined && storeObs.length === 0
       ? 'Brak obserwacji — wczytaj NMEA'
       : null;
+
+  const selectedObs = selectedPrn ? observations.find(o => o.prn === selectedPrn) : null;
 
   return (
     <div className="bg-[#0d1117] border border-[#30363d] rounded-xl p-4">
@@ -140,19 +247,25 @@ export function SkyPlot({ observations: propObs, arcs = [], size = 320 }: Props)
           const color   = GNSS_SYSTEMS[obs.system]?.color ?? '#8b949e';
           const opacity = 0.45 + 0.55 * Math.min(1, (obs.snr ?? 45) / 50);
           const isHov   = hovered === obs.prn;
+          const isSel   = selectedPrn === obs.prn;
           return (
             <g
               key={obs.prn}
               onMouseEnter={() => setHovered(obs.prn)}
               onMouseLeave={() => setHovered(null)}
-              style={{ cursor: 'default' }}
+              onClick={() => setSelectedPrn(obs.prn === selectedPrn ? null : obs.prn)}
+              style={{ cursor: 'pointer' }}
             >
-              <circle cx={x} cy={y} r={isHov ? 8 : 6} fill={color} opacity={opacity} />
+              {/* Pierścień dla wybranego */}
+              {isSel && (
+                <circle cx={x} cy={y} r={11} fill="none" stroke={color} strokeWidth={1.5} opacity={0.7} />
+              )}
+              <circle cx={x} cy={y} r={isHov || isSel ? 8 : 6} fill={color} opacity={opacity} />
               <text x={x + 9} y={y + 4} fill={color} fontSize={9} fontFamily="monospace" opacity={opacity}>
                 {obs.prn}
               </text>
-              {/* Tooltip przy hoverze */}
-              {isHov && (
+              {/* Tooltip przy hoverze (gdy nie wybrany) */}
+              {isHov && !isSel && (
                 <g>
                   <rect
                     x={x + 12} y={y - 24}
@@ -181,8 +294,12 @@ export function SkyPlot({ observations: propObs, arcs = [], size = 320 }: Props)
       </svg>
 
       <div className="text-[#484f58] text-xs font-mono text-center mt-2">
-        {emptyMsg ?? `${observations.length} satelitów`}
+        {emptyMsg ?? `${observations.length} satelitów${selectedPrn ? ' — kliknij aby odznaczyć' : ' — kliknij satelitę'}`}
       </div>
+
+      {selectedObs && (
+        <SatDetailCard prn={selectedPrn!} obs={selectedObs} />
+      )}
     </div>
   );
 }

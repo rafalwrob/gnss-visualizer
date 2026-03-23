@@ -75,6 +75,7 @@ export class SerialConnection {
           (data.measurements?.length ?? 0) > 0 ||
           (data.observations?.length ?? 0) > 0 ||
           (data.ephemerides?.length ?? 0) > 0 ||
+          (data.almanacs?.length ?? 0) > 0 ||
           data.positionFix != null;
         if (hasData) opts.onData(data);
       }

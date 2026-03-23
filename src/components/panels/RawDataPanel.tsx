@@ -1,7 +1,11 @@
+import { useMemo, useState } from 'react';
 import { useReceiverStore } from '../../store/receiverStore';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
+import type { GnssSystem } from '../../types/satellite';
 
 const MAX_ROWS = 50;
+
+const ALL_SYSTEMS: GnssSystem[] = ['gps', 'galileo', 'glonass', 'beidou', 'qzss', 'navic', 'sbas'];
 
 function SnrBar({ snr }: { snr: number }) {
   const pct = Math.min(100, (snr / 55) * 100);
@@ -18,7 +22,23 @@ function SnrBar({ snr }: { snr: number }) {
 
 export function RawDataPanel() {
   const measurements = useReceiverStore(s => s.recentMeasurements);
-  const rows = measurements.slice(-MAX_ROWS).reverse();
+  const [enabledSystems, setEnabledSystems] = useState<Record<GnssSystem, boolean>>({
+    gps: true,
+    galileo: true,
+    glonass: true,
+    beidou: true,
+    qzss: true,
+    navic: true,
+    sbas: true,
+  });
+
+  const rows = useMemo(
+    () => measurements
+      .filter(m => enabledSystems[m.system])
+      .slice(-MAX_ROWS)
+      .reverse(),
+    [measurements, enabledSystems],
+  );
 
   return (
     <div className="bg-[#0d1117] border border-[#30363d] rounded-xl p-4">
@@ -26,9 +46,29 @@ export function RawDataPanel() {
         Raw Measurements
         {rows.length > 0 && <span className="ml-2 text-[#484f58] normal-case tracking-normal">({rows.length})</span>}
       </div>
+
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        {ALL_SYSTEMS.map((system) => {
+          const active = enabledSystems[system];
+          const info = GNSS_SYSTEMS[system];
+          return (
+            <button
+              key={system}
+              onClick={() => setEnabledSystems(prev => ({ ...prev, [system]: !prev[system] }))}
+              className="px-2 py-1 rounded-md text-[10px] border font-mono transition-all"
+              style={active
+                ? { color: '#fff', backgroundColor: info.color, borderColor: info.color }
+                : { color: '#8b949e', borderColor: '#30363d', backgroundColor: '#161b22' }}
+            >
+              {info.name}
+            </button>
+          );
+        })}
+      </div>
+
       {rows.length === 0 ? (
         <div className="text-[#484f58] text-sm font-mono py-4 text-center">
-          Brak danych — wczytaj plik .ubx lub podłącz odbiornik
+          Brak danych dla wybranych konstelacji
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -39,7 +79,7 @@ export function RawDataPanel() {
                 <th className="text-left py-2 pr-3 font-medium">Sys</th>
                 <th className="text-right py-2 pr-3 font-medium">TOW [s]</th>
                 <th className="text-right py-2 pr-3 font-medium">Pseudoodl. [m]</th>
-                <th className="text-left py-2 pr-3 font-medium">C/N₀</th>
+                <th className="text-left py-2 pr-3 font-medium">C/N0</th>
                 <th className="text-right py-2 pr-3 font-medium">Doppler</th>
                 <th className="text-left py-2 font-medium">Pasmo</th>
               </tr>
@@ -61,7 +101,7 @@ export function RawDataPanel() {
                     <td className="py-1.5 pr-3 text-right tabular-nums">{m.pseudorange.toFixed(1)}</td>
                     <td className="py-1.5 pr-3"><SnrBar snr={m.snr} /></td>
                     <td className="py-1.5 pr-3 text-right text-[#6e7681] tabular-nums">
-                      {m.doppler != null ? m.doppler.toFixed(1) : '—'}
+                      {m.doppler != null ? m.doppler.toFixed(1) : '-'}
                     </td>
                     <td className="py-1.5 text-[#8b949e]">{m.freqBand}</td>
                   </tr>
