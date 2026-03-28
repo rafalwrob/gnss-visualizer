@@ -93,7 +93,7 @@ const TAB_TITLES: Partial<Record<LeftTab, string>> = {
   settings: 'Ustawienia sceny',
 };
 
-export function Visualizer() {
+export function Visualizer({ onEnterCelestial }: { onEnterCelestial?: () => void }) {
   const { onlineMode, activeTab, setActiveTab, useEcef, setUseEcef } = useUiStore();
   const [panelWide, setPanelWide] = useState(false);
   const { enabled: obsEnabled, isFetching } = useObserverStore();
@@ -179,6 +179,14 @@ export function Visualizer() {
               );
             })}
           </div>
+          {onEnterCelestial && (
+            <button
+              onClick={onEnterCelestial}
+              className="w-full mt-2 py-3 rounded-lg text-[13px] font-mono font-medium border border-[#a371f7]/40 text-[#a371f7] bg-[#161b22] hover:border-[#a371f7] hover:bg-[#a371f7]/10 transition-all"
+            >
+              Sfera niebieska
+            </button>
+          )}
         </div>
       </div>
 
