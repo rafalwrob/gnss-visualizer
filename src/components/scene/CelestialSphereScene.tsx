@@ -413,6 +413,19 @@ function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
   const earthRef = useRef<THREE.Group>(null);
   const axisRef  = useRef<THREE.Group>(null);
 
+  // Geometrie linii od Słońca do pozycji sezonowych na orbicie
+  const seasonLineGeos = useMemo(
+    () =>
+      HELIO_SEASONS.map(({ dot }) => {
+        const pts = new Float32Array([0, 0, 0, dot.x, dot.y, dot.z]);
+        const g = new THREE.BufferGeometry();
+        g.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+        return g;
+      }),
+    []
+  );
+  useEffect(() => () => seasonLineGeos.forEach(g => g.dispose()), [seasonLineGeos]);
+
   // Orbit ring
   const orbitGeo = useMemo(
     () =>
@@ -470,18 +483,34 @@ function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
       {/* Orbita Ziemi */}
       <primitive object={orbitLine} />
 
-      {/* Etykiety pór roku na orbicie */}
-      {HELIO_SEASONS.map(({ label, pos, color }) => (
-        <Html key={label} distanceFactor={10} position={pos}
-          style={{ fontSize: 10, fontFamily: 'monospace', color, pointerEvents: 'none', whiteSpace: 'pre', textAlign: 'center', lineHeight: '1.4' }}>
-          {label}
-        </Html>
-      ))}
+      {/* Markery pór roku na orbicie — warunkowe */}
+      {HELIO_SEASONS.map(({ label, pos, color, dot }, idx) => {
+        const isEquinox = idx % 2 === 0;
+        if (!(isEquinox ? vis.equinoxPoints : vis.solsticePoints)) return null;
+        return (
+          <group key={idx}>
+            <mesh position={dot}>
+              <sphereGeometry args={[0.07, 12, 12]} />
+              <meshBasicMaterial color={color} />
+            </mesh>
+            <GLine geo={seasonLineGeos[idx]} color={color} opacity={0.35} />
+            <Html distanceFactor={10} position={pos}
+              style={{ fontSize: 10, fontFamily: 'monospace', color, pointerEvents: 'none', whiteSpace: 'pre', textAlign: 'center', lineHeight: '1.4' }}>
+              {label}
+            </Html>
+          </group>
+        );
+      })}
 
       {/* Animowana Ziemia */}
       <group ref={earthRef}>
         {/* Oś rotacji (zawsze ku BPN — fixed in space) */}
         <group ref={axisRef} />
+        {/* Pierścień równika Ziemi — oś torusa = Three.js Y = oś Ziemi (BPN) */}
+        <mesh rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.18, 0.008, 8, 32]} />
+          <meshBasicMaterial color="#60a5fa" transparent opacity={0.7} />
+        </mesh>
         {/* Kula Ziemi */}
         <mesh>
           <sphereGeometry args={[0.14, 24, 24]} />
@@ -527,6 +556,22 @@ function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
           <Html distanceFactor={10} position={[R * 1.15, 0.3, 0]}
             style={{ fontSize: 11, fontFamily: 'monospace', color: '#22c55e', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
             kierunek γ (RA=0h)
+          </Html>
+        </>
+      )}
+
+      {/* Kierunek przesilenia letniego z centrum */}
+      {vis.solsticePoints && (
+        <>
+          <arrowHelper args={[
+            new THREE.Vector3(0, -Math.sin(EPS), Math.cos(EPS)),
+            new THREE.Vector3(0, 0, 0),
+            R * 1.1,
+            0xf97316, 0.18, 0.1
+          ]} />
+          <Html distanceFactor={10} position={[0.4, -Math.sin(EPS) * R * 1.15, Math.cos(EPS) * R * 1.15]}
+            style={{ fontSize: 11, fontFamily: 'monospace', color: '#f97316', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+            przesilenie letnie
           </Html>
         </>
       )}
@@ -578,8 +623,8 @@ export function CelestialSphereScene() {
       )}
       {vis.raCircles    && <RaHourCircles />}
       {vis.decParallels && <DecParallels />}
-      {vis.equinoxPoints  && <EquinoxPoints />}
-      {vis.solsticePoints && <SolsticePoints />}
+      {viewMode === 'geocentric' && vis.equinoxPoints  && <EquinoxPoints />}
+      {viewMode === 'geocentric' && vis.solsticePoints && <SolsticePoints />}
       {vis.poles    && <CelestialPoles />}
       {vis.icrsAxes && <IcrsAxes />}
 
