@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useObserverStore } from '../../store/observerStore';
 import { useTimeStore } from '../../store/timeStore';
 import { useUiStore } from '../../store/uiStore';
-import { fetchConstellation } from '../../services/api/celestrak';
+import { fetchConstellation, reanchorRecords } from '../../services/api/celestrak';
 import { anim } from '../scene/animState';
 import type { GnssSystem } from '../../types/satellite';
 
@@ -53,13 +53,19 @@ export function VisibilityControls() {
     if (isNaN(parsedLat) || isNaN(parsedLon)) { setFetchError('Nieprawidłowe współrzędne'); return; }
     setIsFetching(true); reset(); setFetching(true); setFetchError(''); setEnabled(false);
     SYSTEMS.forEach(sys => setSystemStatus(sys, { status: 'loading', count: 0 }));
+    // Wspólna kotwica czasu: efemerydy Keplera i zegar symulacji muszą mieć ten sam origin
+    const anchorMs = Date.now();
     const results = await Promise.all(SYSTEMS.map(async (sys) => {
       try {
-        const sats = await fetchConstellation(sys);
+        const sats = await fetchConstellation(sys, anchorMs);
         setSystemStatus(sys, { status: 'ok', count: sats.length });
         return sats;
       } catch { setSystemStatus(sys, { status: 'error', count: 0 }); return []; }
     }));
+    anim.simulationOriginMs = anchorMs;
+    anim.timeSec = (Date.now() - anchorMs) / 1000;
+    setTimeHours(anim.timeSec / 3600);
+    setSimDate(msToDateStr(anchorMs)); setSimTime(msToTimeStr(anchorMs));
     setAllSats(results.flat()); setLat(parsedLat); setLon(parsedLon); setAlt(parsedAlt);
     setFetching(false); setEnabled(true); setIsFetching(false);
   }
@@ -68,6 +74,9 @@ export function VisibilityControls() {
     const ms = new Date(`${simDate}T${simTime}:00Z`).getTime();
     if (isNaN(ms)) return;
     anim.simulationOriginMs = ms; anim.timeSec = 0; setTimeHours(0);
+    // Efemerydy Keplera są zakotwiczone w originie zegara — przelicz na nową datę
+    const { allSats: sats, setAllSats: apply } = useObserverStore.getState();
+    if (sats.length > 0) apply(reanchorRecords(sats, ms));
   }
 
   const inputCls = "w-full bg-[#0d1117] border border-[#30363d] rounded-lg px-2 py-1.5 text-sm text-[#e6edf3] focus:border-[#58a6ff] outline-none font-mono";

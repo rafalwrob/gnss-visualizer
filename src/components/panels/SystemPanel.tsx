@@ -43,9 +43,10 @@ export function SystemPanel() {
   function doFetch(system: GnssSystem) {
     setFetchState('loading');
     setFetchError('');
-    fetchConstellation(system)
+    const anchorMs = Date.now(); // wspólna kotwica: efemerydy i zegar live
+    fetchConstellation(system, anchorMs)
       .then(sats => {
-        anim.realtimeOriginMs = Date.now();
+        anim.realtimeOriginMs = anchorMs;
         anim.realtimeClock = true;
         setSatellites(sats);
         setMode('constellation');

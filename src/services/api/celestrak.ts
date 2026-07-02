@@ -1,5 +1,5 @@
-import { twoline2satrec, propagate, gstime, eciToEcf } from 'satellite.js';
-import type { SatelliteRecord, GnssSystem } from '../../types/satellite';
+import { twoline2satrec, json2satrec, propagate, gstime, eciToEcf } from 'satellite.js';
+import type { SatelliteRecord, GnssSystem, GpMeta } from '../../types/satellite';
 import type { KeplerianEphemeris } from '../../types/ephemeris';
 import { MU, R_E, PLANE_COLORS } from '../../constants/gnss';
 
@@ -144,33 +144,65 @@ async function fetchGp(system: GnssSystem): Promise<GpRecord[]> {
 
 // ---------- GP → SatelliteRecord ----------
 
-function gpToRecord(gp: GpRecord, nowSec: number, system: GnssSystem, cfg: SystemConfig, idx: number): SatelliteRecord {
+/**
+ * Przelicza surowe elementy GP na efemerydę zakotwiczoną w anchorMs.
+ *
+ * Konwencja: computeGPSPosition(eph, t, ecef=true) z toe=0 liczy
+ *   Ω_ecef(t) = Ω₀ + (Ω̇ − ωₑ)·t
+ * więc Ω₀ musi być długością geograficzną węzła w chwili anchor:
+ *   Ω₀ = RAAN_inercjalny(anchor) − GMST(anchor)
+ * Bez odjęcia GMST cała konstelacja byłaby obrócona wokół osi Z
+ * o kąt gwiazdowy Greenwich (błąd el/az/śladów do 360°).
+ */
+export function anchorEphemeris(meta: GpMeta, anchorMs: number): KeplerianEphemeris {
+  const dt   = (anchorMs - meta.epochMs) / 1000;
+  const gmst = gstime(new Date(anchorMs)); // [rad]
+
+  const M0     = ((meta.m + meta.n * dt) % PI2 + PI2) % PI2;
+  const Omega0 = ((meta.raan + meta.raanDot * dt - gmst) % PI2 + PI2) % PI2;
+
+  return {
+    a: meta.a, e: meta.e, i0: meta.i,
+    Omega0, OmegaDot: meta.raanDot,
+    omega: meta.argp,
+    M0, dn: 0, IDOT: 0,
+    Cuc: 0, Cus: 0, Crc: 0, Crs: 0, Cic: 0, Cis: 0,
+    toe: 0,
+  };
+}
+
+/** Przelicza efemerydy rekordów na nową kotwicę czasu (rekordy bez gpMeta pozostają bez zmian) */
+export function reanchorRecords(sats: SatelliteRecord[], anchorMs: number): SatelliteRecord[] {
+  return sats.map(s => s.gpMeta ? { ...s, eph: anchorEphemeris(s.gpMeta, anchorMs) } : s);
+}
+
+function gpToRecord(gp: GpRecord, anchorMs: number, system: GnssSystem, cfg: SystemConfig, idx: number): SatelliteRecord {
   const i  = D(gp.INCLINATION);
   const e  = gp.ECCENTRICITY;
   const n  = (gp.MEAN_MOTION * PI2) / SEC_PER_DAY;
   const a  = gp.SEMIMAJOR_AXIS ? gp.SEMIMAJOR_AXIS * 1000 : Math.cbrt(MU / (n * n));
   const wd = omegaDotJ2(a, i, e, n);
 
-  const dt     = nowSec - Date.parse(gp.EPOCH) / 1000;
-  const M0     = ((D(gp.MEAN_ANOMALY)   + n  * dt) % PI2 + PI2) % PI2;
-  const Omega0 = ((D(gp.RA_OF_ASC_NODE) + wd * dt) % PI2 + PI2) % PI2;
+  const meta: GpMeta = {
+    epochMs: Date.parse(gp.EPOCH),
+    n, a, e, i,
+    raan: D(gp.RA_OF_ASC_NODE),
+    argp: D(gp.ARG_OF_PERICENTER),
+    m: D(gp.MEAN_ANOMALY),
+    raanDot: wd,
+  };
 
+  const eph = anchorEphemeris(meta, anchorMs);
+
+  // Kolor płaszczyzny wg inercjalnego RAAN (stabilny, niezależny od pory doby)
+  const raanNow  = ((meta.raan + wd * ((anchorMs - meta.epochMs) / 1000)) % PI2 + PI2) % PI2;
   const colors   = PLANE_COLORS[system];
   const planeDeg = 360 / cfg.planes;
-  const plane    = Math.min(Math.floor((Omega0 * 180 / Math.PI) / planeDeg), colors.length - 1);
+  const plane    = Math.min(Math.floor((raanNow * 180 / Math.PI) / planeDeg), colors.length - 1);
   const color    = colors[plane];
   const prn      = cfg.prnExtract(gp.OBJECT_NAME, idx);
 
-  const eph: KeplerianEphemeris = {
-    a, e, i0: i,
-    Omega0, OmegaDot: wd,
-    omega: D(gp.ARG_OF_PERICENTER),
-    M0, dn: 0, IDOT: 0,
-    Cuc: 0, Cus: 0, Crc: 0, Crs: 0, Cic: 0, Cis: 0,
-    toe: 0,
-  };
-
-  const record: SatelliteRecord = { prn, system, plane, color, eph };
+  const record: SatelliteRecord = { prn, system, plane, color, eph, gpMeta: meta };
   if (gp.TLE_LINE1 && gp.TLE_LINE2) {
     record.tleLine1 = gp.TLE_LINE1;
     record.tleLine2 = gp.TLE_LINE2;
@@ -178,6 +210,14 @@ function gpToRecord(gp: GpRecord, nowSec: number, system: GnssSystem, cfg: Syste
       record.satrec = twoline2satrec(gp.TLE_LINE1, gp.TLE_LINE2);
     } catch {
       // ignoruj błędy parsowania TLE — fallback do Keplera
+    }
+  } else {
+    // GP JSON (format OMM) nie zawiera linii TLE — buduj SatRec bezpośrednio z OMM
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      record.satrec = json2satrec(gp as any);
+    } catch {
+      // fallback do Keplera
     }
   }
   return record;
@@ -188,13 +228,14 @@ function gpToRecord(gp: GpRecord, nowSec: number, system: GnssSystem, cfg: Syste
 /**
  * Pobiera aktualną konstelację GNSS z CelesTrak (cache 1h).
  * Obsługuje: GPS, Galileo, GLONASS, BeiDou, QZSS, NavIC.
+ * @param anchorMs Unix ms, w którym timeSec=0 (domyślnie teraz) —
+ *                 musi odpowiadać originowi zegara animacji.
  */
-export async function fetchConstellation(system: GnssSystem): Promise<SatelliteRecord[]> {
+export async function fetchConstellation(system: GnssSystem, anchorMs: number = Date.now()): Promise<SatelliteRecord[]> {
   const cfg = CONFIGS[system];
   if (!cfg) throw new Error(`System ${system} nie jest obsługiwany w trybie online`);
 
   const records = await fetchGp(system);
-  const nowSec  = Date.now() / 1000;
 
   const byName = cfg.nameFilter
     ? records.filter(r => r.OBJECT_NAME.toUpperCase().includes(cfg.nameFilter.toUpperCase()))
@@ -210,7 +251,7 @@ export async function fetchConstellation(system: GnssSystem): Promise<SatelliteR
   });
 
   return sane
-    .map((r, idx) => gpToRecord(r, nowSec, system, cfg, idx))
+    .map((r, idx) => gpToRecord(r, anchorMs, system, cfg, idx))
     .sort((a, b) => a.prn.localeCompare(b.prn, undefined, { numeric: true }));
 }
 
