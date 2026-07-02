@@ -1,8 +1,10 @@
-import { useEffect, useRef, useMemo } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useEffect, useRef, useMemo, Suspense } from 'react';
+import { useFrame, useLoader } from '@react-three/fiber';
 import { Html, Stars } from '@react-three/drei';
 import * as THREE from 'three';
+import { TextureLoader } from 'three';
 import { Earth } from './Earth';
+import earthDaymap from '../../assets/textures/earth_daymap.jpg';
 import { anim } from './animState';
 import { celestialAnim } from './celestialAnim';
 import { useCelestialStore } from '../../store/celestialStore';
@@ -19,10 +21,14 @@ const DEG    = Math.PI / 180;
 
 /**
  * Długość ekliptyczna Słońca (geocentryczna) dla danego dnia roku.
- * λ=0° ≈ dzień 79 (20 marca, równonoc wiosenna).
+ * Ruch średni od równonocy (~20 mar, dzień 79) + równanie środka
+ * (poprawka eliptyczności orbity, peryhelium ~3 sty, e=0.0167).
+ * Dokładność ~0,03° — wystarczająca dla wizualizacji.
  */
 function sunLambda(dayOfYear: number): number {
-  return ((dayOfYear - 79) / 365.25) * 2 * Math.PI;
+  const L = ((dayOfYear - 79) / 365.25) * 2 * Math.PI;           // średnia długość od γ
+  const g = ((dayOfYear - 2) / 365.25) * 2 * Math.PI;            // anomalia średnia (peryhelium ~3 sty)
+  return L + (1.915 * Math.sin(g) + 0.020 * Math.sin(2 * g)) * DEG;
 }
 
 /**
@@ -369,7 +375,7 @@ function AnimatedSunMarker() {
         <Html distanceFactor={10} position={[0.8, 0, 0]}
           style={{ fontSize: 11, fontFamily: 'monospace', color: '#fbbf24', pointerEvents: 'auto', cursor: 'pointer', whiteSpace: 'nowrap' }}
           onClick={() => setActiveInfo('sun')}>
-          Slonce (dzis)
+          ☀ Słońce
         </Html>
       </group>
     </>
@@ -384,30 +390,49 @@ function AnimatedSunMarker() {
 // λ_earth = λ_sun + π — Ziemia naprzeciw geocentrycznego Słońca
 const HELIO_SEASONS = [
   {
-    label: 'Równonoc wiosenna\n~20 mar',
-    pos: earthPosHelio(0, R_ORB * 1.35),             // λ_sun=0 → λ_earth=π → (-R,0,0)
+    label: 'Równonoc wiosenna\n~20 mar · dzień = noc',
+    pos: earthPosHelio(0, R_ORB * 1.42),             // λ_sun=0 → λ_earth=π → (-R,0,0)
     color: '#22c55e',
     dot: earthPosHelio(0, R_ORB),
   },
   {
-    label: 'Przesilenie letnie\n~21 cze',
-    pos: earthPosHelio(Math.PI / 2, R_ORB * 1.35),
+    label: 'Przesilenie letnie\n~21 cze · lato półkuli N',
+    pos: earthPosHelio(Math.PI / 2, R_ORB * 1.42),
     color: '#f97316',
     dot: earthPosHelio(Math.PI / 2, R_ORB),
   },
   {
-    label: 'Równonoc jesienna\n~23 wrz',
-    pos: earthPosHelio(Math.PI, R_ORB * 1.35),
+    label: 'Równonoc jesienna\n~23 wrz · dzień = noc',
+    pos: earthPosHelio(Math.PI, R_ORB * 1.42),
     color: '#ef4444',
     dot: earthPosHelio(Math.PI, R_ORB),
   },
   {
-    label: 'Przesilenie zimowe\n~21 gru',
-    pos: earthPosHelio((3 * Math.PI) / 2, R_ORB * 1.35),
+    label: 'Przesilenie zimowe\n~21 gru · zima półkuli N',
+    pos: earthPosHelio((3 * Math.PI) / 2, R_ORB * 1.42),
     color: '#3b82f6',
     dot: earthPosHelio((3 * Math.PI) / 2, R_ORB),
   },
 ];
+
+/** Normalna płaszczyzny ekliptyki (północny biegun ekliptyki) w Three.js */
+const ECLIPTIC_NORMAL = new THREE.Vector3(0, Math.cos(EPS), Math.sin(EPS));
+
+/** Kula Ziemi z teksturą, oświetlana punktowym światłem Słońca */
+function HelioEarthBall() {
+  const meshRef = useRef<THREE.Mesh>(null!);
+  const colorMap = useLoader(TextureLoader, earthDaymap);
+  useFrame((_, delta) => {
+    // Powolny obrót poglądowy wokół osi (oś Ziemi = +Y, ku BPN)
+    meshRef.current.rotation.y += delta * 0.25;
+  });
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[0.14, 32, 32]} />
+      <meshLambertMaterial map={colorMap} />
+    </mesh>
+  );
+}
 
 function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
   const earthRef = useRef<THREE.Group>(null);
@@ -426,7 +451,7 @@ function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
   );
   useEffect(() => () => seasonLineGeos.forEach(g => g.dispose()), [seasonLineGeos]);
 
-  // Orbit ring
+  // Orbita Ziemi — okrąg w płaszczyźnie ekliptyki
   const orbitGeo = useMemo(
     () =>
       buildCircleBuffer(128, t => [
@@ -437,24 +462,61 @@ function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
     []
   );
   const orbitMat = useMemo(
-    () => new THREE.LineBasicMaterial({ color: '#a0c0e0', transparent: true, opacity: 0.5 }),
+    () => new THREE.LineBasicMaterial({ color: '#ffd700', transparent: true, opacity: 0.6 }),
     []
   );
   const orbitLine = useMemo(() => new THREE.Line(orbitGeo, orbitMat), [orbitGeo, orbitMat]);
   useEffect(() => () => { orbitGeo.dispose(); orbitMat.dispose(); }, [orbitGeo, orbitMat]);
 
-  // Oś Ziemi (zawsze w kierunku BPN = Three.js Y)
+  // Oś Ziemi (zawsze w kierunku BPN = Three.js Y — kierunek stały w przestrzeni)
+  // + normalna ekliptyki (przerywana) + łuk kąta ε między nimi
   useEffect(() => {
-    if (!axisRef.current) return;
-    const geo = new THREE.BufferGeometry();
-    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, -0.4, 0, 0, 0.4, 0]), 3));
-    const mat = new THREE.LineBasicMaterial({ color: '#88aaff' });
-    const line = new THREE.Line(geo, mat);
-    axisRef.current.add(line);
-    // Czubek osi = strzałka ku BPN
-    const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0.2, 0), 0.3, 0x88aaff, 0.08, 0.05);
-    axisRef.current.add(arrow);
-    return () => { geo.dispose(); mat.dispose(); axisRef.current?.remove(line); axisRef.current?.remove(arrow); };
+    const g = axisRef.current;
+    if (!g) return;
+    const disposables: (THREE.BufferGeometry | THREE.Material)[] = [];
+    const objects: THREE.Object3D[] = [];
+
+    // Oś rotacji Ziemi
+    const axGeo = new THREE.BufferGeometry();
+    axGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array([0, -0.35, 0, 0, 0.35, 0]), 3));
+    const axMat = new THREE.LineBasicMaterial({ color: '#88aaff' });
+    const axLine = new THREE.Line(axGeo, axMat);
+    const arrow = new THREE.ArrowHelper(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0.35, 0), 0.18, 0x88aaff, 0.07, 0.045);
+    disposables.push(axGeo, axMat);
+    objects.push(axLine, arrow);
+
+    // Normalna ekliptyki (przerywana, od środka Ziemi)
+    const n = ECLIPTIC_NORMAL;
+    const nGeo = new THREE.BufferGeometry();
+    nGeo.setAttribute('position', new THREE.BufferAttribute(
+      new Float32Array([0, 0, 0, n.x * 0.5, n.y * 0.5, n.z * 0.5]), 3));
+    const nMat = new THREE.LineDashedMaterial({ color: '#ffd700', dashSize: 0.04, gapSize: 0.03, transparent: true, opacity: 0.8 });
+    const nLine = new THREE.Line(nGeo, nMat);
+    nLine.computeLineDistances();
+    disposables.push(nGeo, nMat);
+    objects.push(nLine);
+
+    // Łuk kąta ε: od osi Ziemi (t=0) do normalnej ekliptyki (t=ε), promień 0.28
+    const arcSegs = 24;
+    const arcPts = new Float32Array((arcSegs + 1) * 3);
+    for (let i = 0; i <= arcSegs; i++) {
+      const t = (i / arcSegs) * EPS;
+      arcPts[i * 3]     = 0;
+      arcPts[i * 3 + 1] = 0.28 * Math.cos(t);
+      arcPts[i * 3 + 2] = 0.28 * Math.sin(t);
+    }
+    const arcGeo = new THREE.BufferGeometry();
+    arcGeo.setAttribute('position', new THREE.BufferAttribute(arcPts, 3));
+    const arcMat = new THREE.LineBasicMaterial({ color: '#f7c948' });
+    const arcLine = new THREE.Line(arcGeo, arcMat);
+    disposables.push(arcGeo, arcMat);
+    objects.push(arcLine);
+
+    objects.forEach(o => g.add(o));
+    return () => {
+      objects.forEach(o => g.remove(o));
+      disposables.forEach(d => d.dispose());
+    };
   }, []);
 
   useFrame(() => {
@@ -466,9 +528,9 @@ function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
 
   return (
     <>
-      {/* Światło punktowe ze Słońca */}
-      <pointLight position={[0, 0, 0]} intensity={3} distance={15} decay={1} />
-      <ambientLight intensity={0.15} />
+      {/* Światło punktowe ze Słońca — jedyne źródło światła dla Ziemi */}
+      <pointLight position={[0, 0, 0]} intensity={9} distance={30} decay={2} />
+      <ambientLight intensity={0.12} />
 
       {/* Słońce w środku */}
       <mesh>
@@ -480,8 +542,14 @@ function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
         ☀ Słońce
       </Html>
 
-      {/* Orbita Ziemi */}
+      {/* Orbita Ziemi (w płaszczyźnie ekliptyki) */}
       <primitive object={orbitLine} />
+
+      {/* Dysk płaszczyzny ekliptyki — orbita Ziemi leży w tej płaszczyźnie */}
+      <mesh rotation={[EPS - Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[0.32, R_ORB, 96]} />
+        <meshBasicMaterial color="#ffd700" transparent opacity={0.045} side={THREE.DoubleSide} depthWrite={false} />
+      </mesh>
 
       {/* Markery pór roku na orbicie — warunkowe */}
       {HELIO_SEASONS.map(({ label, pos, color, dot }, idx) => {
@@ -504,74 +572,70 @@ function HeliocentricScene({ vis }: { vis: CelestialVisibility }) {
 
       {/* Animowana Ziemia */}
       <group ref={earthRef}>
-        {/* Oś rotacji (zawsze ku BPN — fixed in space) */}
+        {/* Oś rotacji + normalna ekliptyki + łuk ε */}
         <group ref={axisRef} />
-        {/* Pierścień równika Ziemi — oś torusa = Three.js Y = oś Ziemi (BPN) */}
+        <Html distanceFactor={10} position={[0, 0.38, 0.14]}
+          style={{ fontSize: 9, fontFamily: 'monospace', color: '#f7c948', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          ε = 23,44°
+        </Html>
+        {/* Pierścień równika Ziemi — prostopadły do osi rotacji (+Y) */}
         <mesh rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[0.18, 0.008, 8, 32]} />
-          <meshBasicMaterial color="#60a5fa" transparent opacity={0.7} />
+          <meshBasicMaterial color="#00e5ff" transparent opacity={0.7} />
         </mesh>
-        {/* Kula Ziemi */}
-        <mesh>
-          <sphereGeometry args={[0.14, 24, 24]} />
-          <meshPhongMaterial color="#2563eb" emissive="#0a1a3a" shininess={60} />
-        </mesh>
+        {/* Kula Ziemi z teksturą, oświetlana przez Słońce */}
+        <Suspense fallback={
+          <mesh>
+            <sphereGeometry args={[0.14, 24, 24]} />
+            <meshLambertMaterial color="#2563eb" />
+          </mesh>
+        }>
+          <HelioEarthBall />
+        </Suspense>
         <Html distanceFactor={10} position={[0.25, 0.15, 0]}
           style={{ fontSize: 11, fontFamily: 'monospace', color: '#60a5fa', pointerEvents: 'none', whiteSpace: 'nowrap', fontWeight: 'bold' }}>
           🌍 Ziemia
         </Html>
       </group>
 
-      {/* Płaszczyzna równika niebieskiego (słabe wypełnienie) */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[R * 0.85, 64]} />
-        <meshBasicMaterial color="#00e5ff" transparent opacity={0.03} side={THREE.DoubleSide} />
-      </mesh>
-
-      {/* NCP — strzałka z centrum ku górze */}
+      {/* Północny biegun ekliptyki — strzałka z centrum (Słońca) */}
       {vis.poles && (
         <>
           <arrowHelper args={[
+            ECLIPTIC_NORMAL.clone(),
+            new THREE.Vector3(0, 0, 0),
+            R * 0.75,
+            0xffd700, 0.15, 0.09
+          ]} />
+          <Html distanceFactor={10} position={[0.35, ECLIPTIC_NORMAL.y * R * 0.78, ECLIPTIC_NORMAL.z * R * 0.78]}
+            style={{ fontSize: 10, fontFamily: 'monospace', color: '#ffd700', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+            biegun ekliptyki
+          </Html>
+          <arrowHelper args={[
             new THREE.Vector3(0, 1, 0),
             new THREE.Vector3(0, 0, 0),
-            R * 1.1,
-            0x3b82f6, 0.18, 0.1
+            R * 0.9,
+            0x3b82f6, 0.15, 0.09
           ]} />
-          <Html distanceFactor={10} position={[0.4, R * 1.1, 0]}
-            style={{ fontSize: 11, fontFamily: 'monospace', color: '#3b82f6', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-            BPN (oś ICRS Z)
+          <Html distanceFactor={10} position={[0.35, R * 0.93, 0]}
+            style={{ fontSize: 10, fontFamily: 'monospace', color: '#3b82f6', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+            BPN (kierunek osi Ziemi)
           </Html>
         </>
       )}
 
-      {/* Kierunek γ z centrum */}
+      {/* Kierunek γ z centrum — Ziemia widzi Słońce w γ, gdy sama jest po przeciwnej stronie */}
       {vis.equinoxPoints && (
         <>
           <arrowHelper args={[
             new THREE.Vector3(1, 0, 0),
             new THREE.Vector3(0, 0, 0),
-            R * 1.1,
-            0x22c55e, 0.18, 0.1
+            R * 0.9,
+            0x22c55e, 0.15, 0.09
           ]} />
-          <Html distanceFactor={10} position={[R * 1.15, 0.3, 0]}
-            style={{ fontSize: 11, fontFamily: 'monospace', color: '#22c55e', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+          <Html distanceFactor={10} position={[R * 0.95, 0.3, 0]}
+            style={{ fontSize: 10, fontFamily: 'monospace', color: '#22c55e', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
             kierunek γ (RA=0h)
-          </Html>
-        </>
-      )}
-
-      {/* Kierunek przesilenia letniego z centrum */}
-      {vis.solsticePoints && (
-        <>
-          <arrowHelper args={[
-            new THREE.Vector3(0, -Math.sin(EPS), Math.cos(EPS)),
-            new THREE.Vector3(0, 0, 0),
-            R * 1.1,
-            0xf97316, 0.18, 0.1
-          ]} />
-          <Html distanceFactor={10} position={[0.4, -Math.sin(EPS) * R * 1.15, Math.cos(EPS) * R * 1.15]}
-            style={{ fontSize: 11, fontFamily: 'monospace', color: '#f97316', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
-            przesilenie letnie
           </Html>
         </>
       )}
@@ -625,7 +689,7 @@ export function CelestialSphereScene() {
       {vis.decParallels && <DecParallels />}
       {viewMode === 'geocentric' && vis.equinoxPoints  && <EquinoxPoints />}
       {viewMode === 'geocentric' && vis.solsticePoints && <SolsticePoints />}
-      {vis.poles    && <CelestialPoles />}
+      {viewMode === 'geocentric' && vis.poles && <CelestialPoles />}
       {vis.icrsAxes && <IcrsAxes />}
 
       {/* ── Tryb geocentryczny: Ziemia w centrum, Słońce na sferze ── */}

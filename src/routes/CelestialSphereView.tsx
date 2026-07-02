@@ -160,7 +160,11 @@ export function CelestialSphereView({ onBack }: { onBack: () => void }) {
             </button>
             <button
               onClick={() => {
-                const d = 87; // ~28 marca
+                const now = new Date();
+                const d = Math.round(
+                  (Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) -
+                    Date.UTC(now.getFullYear(), 0, 0)) / 86400000
+                ) % 365;
                 setDayOfYear(d);
                 celestialAnim.dayOfYear = d;
               }}
