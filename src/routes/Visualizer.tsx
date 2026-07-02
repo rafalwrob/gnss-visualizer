@@ -12,6 +12,7 @@ import { FrequencyPanel } from '../components/panels/FrequencyPanel';
 import { useUiStore } from '../store/uiStore';
 import type { LeftTab } from '../store/uiStore';
 import { useObserverStore } from '../store/observerStore';
+import { useIonoStore } from '../store/ionoStore';
 
 function Toggle({
   label,
@@ -41,25 +42,41 @@ function SettingsPanel() {
     showEciAxes, setShowEciAxes,
     showSignalLines, setShowSignalLines,
     showEnuAxes, setShowEnuAxes,
+    setActiveTab,
   } = useUiStore();
+  const { enabled: ionoEnabled, setEnabled: setIonoEnabled } = useIonoStore();
 
   return (
     <div className="space-y-4 font-mono">
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
         <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Wizualizacja</div>
-        <Toggle label="Slad naziemny" value={showGroundTrack} onChange={setShowGroundTrack} />
+        <Toggle label="Ślad naziemny" value={showGroundTrack} onChange={setShowGroundTrack} />
         <Toggle
-          label="Osie ukladu (ECI/ECEF)"
-          hint="Czerwona=X, Zielona=Z, Niebieska=-Y"
+          label="Warstwa jonosfery (3D)"
+          hint="Powłoka na wys. 350 km z mapą opóźnienia Klobuchar"
+          value={ionoEnabled}
+          onChange={setIonoEnabled}
+        />
+        {ionoEnabled && (
+          <button
+            onClick={() => setActiveTab('orbital')}
+            className="text-xs text-[#58a6ff] hover:text-[#79c0ff] underline underline-offset-2"
+          >
+            Edytuj parametry Klobuchar (α/β) →
+          </button>
+        )}
+        <Toggle
+          label="Osie układu (ECI/ECEF)"
+          hint="Czerwona=X, Zielona=Z, Niebieska=−Y"
           value={showEciAxes}
           onChange={setShowEciAxes}
         />
       </div>
       <div className="bg-[#161b22] border border-[#30363d] rounded-xl p-4 space-y-4">
-        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Tryb widocznosci</div>
+        <div className="text-[#6e7681] text-[10px] uppercase tracking-widest">Tryb widoczności</div>
         <Toggle
-          label="Linie sygnalowe"
-          hint="Linie obserwator-satelita"
+          label="Linie sygnałowe"
+          hint="Linie obserwator–satelita (wszystkie widoczne)"
           value={showSignalLines}
           onChange={setShowSignalLines}
         />
@@ -74,22 +91,59 @@ function SettingsPanel() {
   );
 }
 
+/** Pływający pasek szybkich przełączników nad sceną 3D */
+function SceneToolbar() {
+  const {
+    showGroundTrack, setShowGroundTrack,
+    showSignalLines, setShowSignalLines,
+    showEciAxes, setShowEciAxes,
+  } = useUiStore();
+  const { enabled: ionoEnabled, setEnabled: setIonoEnabled } = useIonoStore();
+  const { enabled: obsEnabled } = useObserverStore();
+
+  const items: { label: string; title: string; value: boolean; onToggle: () => void; show?: boolean }[] = [
+    { label: 'Jonosfera', title: 'Warstwa jonosfery — mapa opóźnienia Klobuchar (350 km)', value: ionoEnabled, onToggle: () => setIonoEnabled(!ionoEnabled) },
+    { label: 'Ślad', title: 'Ślad naziemny orbit', value: showGroundTrack, onToggle: () => setShowGroundTrack(!showGroundTrack) },
+    { label: 'Linie', title: 'Linie sygnałowe obserwator–satelita (tryb widoczności)', value: showSignalLines, onToggle: () => setShowSignalLines(!showSignalLines), show: obsEnabled },
+    { label: 'Osie', title: 'Osie układu odniesienia', value: showEciAxes, onToggle: () => setShowEciAxes(!showEciAxes) },
+  ];
+
+  return (
+    <div className="absolute top-3 right-3 flex gap-1.5 font-mono z-10">
+      {items.filter(i => i.show !== false).map(i => (
+        <button
+          key={i.label}
+          onClick={i.onToggle}
+          title={i.title}
+          className={`px-2.5 py-1 rounded-full text-[11px] border backdrop-blur transition-all ${
+            i.value
+              ? 'bg-[#1f6feb]/30 border-[#1f6feb] text-[#79c0ff]'
+              : 'bg-[#0d1117]/70 border-[#30363d] text-[#6e7681] hover:border-[#58a6ff]/60 hover:text-[#c9d1d9]'
+          }`}
+        >
+          {i.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 const NAV_TABS: { id: LeftTab; label: string }[] = [
   { id: 'orbital', label: 'Parametry' },
   { id: 'satellites', label: 'Satelity' },
   { id: 'kepler', label: 'Kalkulator' },
   { id: 'receiver', label: 'Odbiornik' },
-  { id: 'signals', label: 'Sygnaly' },
+  { id: 'signals', label: 'Sygnały' },
   { id: 'settings', label: 'Ustawienia' },
 ];
 
 const TAB_TITLES: Partial<Record<LeftTab, string>> = {
   orbital: 'Parametry orbity',
-  satellites: 'Lista satelitow',
+  satellites: 'Lista satelitów',
   kepler: 'Kalkulator Keplera',
-  visibility: 'Widocznosc satelitow',
+  visibility: 'Widoczność satelitów',
   receiver: 'Odbiornik GNSS',
-  signals: 'Pasma sygnalow GNSS',
+  signals: 'Pasma sygnałów GNSS',
   settings: 'Ustawienia sceny',
 };
 
@@ -146,7 +200,7 @@ export function Visualizer({ onEnterCelestial }: { onEnterCelestial?: () => void
             })}
           </div>
           <div className="text-[10px] text-[#484f58] font-mono mt-1 text-center">
-            {useEcef ? 'ECEF - staly z Ziemia' : 'ECI - inercjalny, czyste elipsy'}
+            {useEcef ? 'ECEF — związany z Ziemią' : 'ECI — inercjalny, czyste elipsy'}
           </div>
         </div>
 
@@ -192,6 +246,7 @@ export function Visualizer({ onEnterCelestial }: { onEnterCelestial?: () => void
 
       <div className="flex-1 relative min-w-0">
         <GlobeScene />
+        <SceneToolbar />
         <div className="absolute bottom-2 right-3 text-[10px] text-[#21262d] font-mono pointer-events-none select-none">
           GNSS Visualizer · alpha
         </div>

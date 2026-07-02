@@ -24,7 +24,7 @@ type FetchState = 'idle' | 'loading' | 'ok' | 'error';
 
 function formatAge(ms: number): string {
   const min = Math.floor(ms / 60000);
-  if (min < 1) return 'przed chwila';
+  if (min < 1) return 'przed chwilą';
   if (min < 60) return `${min} min temu`;
   return `${Math.floor(min / 60)} h temu`;
 }
@@ -55,7 +55,7 @@ export function SystemPanel() {
       })
       .catch(e => {
         setFetchState('error');
-        setFetchError(e.message ?? 'Blad polaczenia');
+        setFetchError(e.message ?? 'Błąd połączenia');
       });
   }
 
@@ -109,7 +109,7 @@ export function SystemPanel() {
       <div className="text-[#8b949e] text-[11px] uppercase tracking-wider mb-2">System GNSS</div>
       {receiverLocked && (
         <div className="mb-3 text-[11px] text-[#f7c948] bg-[#f7c948]/10 border border-[#f7c948]/30 rounded-lg px-2.5 py-2">
-          Tryb odbiornika jest aktywny. Zamknij panel odbiornika, aby odblokowac te ustawienia.
+          Tryb odbiornika jest aktywny. Zamknij panel odbiornika, aby odblokować te ustawienia.
         </div>
       )}
 
@@ -187,7 +187,7 @@ export function SystemPanel() {
               : 'bg-transparent border-[#30363d] text-[#8b949e] hover:border-[#a371f7] disabled:opacity-40 disabled:hover:border-[#30363d]'
           }`}
         >
-          Widocznosc
+          Widoczność
         </button>
       </div>
 
@@ -195,7 +195,7 @@ export function SystemPanel() {
         <div className="mt-1">
           {!isOnlineSupported(activeSystem) && (
             <div className="text-[#8b949e] text-[11px]">
-              {GNSS_SYSTEMS[activeSystem].name} niedostepny online
+              {GNSS_SYSTEMS[activeSystem].name} niedostępny online
             </div>
           )}
           {isOnlineSupported(activeSystem) && fetchState === 'loading' && (
@@ -206,10 +206,10 @@ export function SystemPanel() {
           {isOnlineSupported(activeSystem) && fetchState === 'ok' && (
             <div className="flex items-center justify-between">
               <span className="text-[#3fb950] text-[11px]">
-                ok {cacheAge !== null ? formatAge(cacheAge) : 'zaladowano'}
+                ok {cacheAge !== null ? formatAge(cacheAge) : 'załadowano'}
               </span>
               <button onClick={handleRefresh} className="text-[#58a6ff] text-[11px] hover:text-[#79c0ff]">
-                Odswiez
+                Odśwież
               </button>
             </div>
           )}
@@ -225,7 +225,7 @@ export function SystemPanel() {
           disabled={receiverLocked}
           className="w-full mt-2 py-2 rounded bg-[#21262d] hover:bg-[#30363d] text-[#58a6ff] border border-[#30363d] text-[11px] transition-colors disabled:opacity-40"
         >
-          Zaladuj przyklad
+          Załaduj przykład
         </button>
       )}
     </div>
