@@ -34,7 +34,10 @@ export function SignalLines() {
   useFrame(() => {
     if (!geomRef.current || !matRef.current) return;
 
-    if (!anim.visibilityMode || !anim.showSignalLines) {
+    // Linia do wyróżnionego satelity rysowana jest zawsze (klik na PRN),
+    // linie do wszystkich — tylko gdy włączono opcję w ustawieniach.
+    const hp = anim.highlightedPrn;
+    if (!anim.visibilityMode || (!anim.showSignalLines && !hp)) {
       geomRef.current.setDrawRange(0, 0);
       return;
     }
@@ -64,12 +67,12 @@ export function SignalLines() {
 
     for (const sat of allSats) {
       if (count >= MAX_LINES) break;
-      if (!enabledSystems[sat.system]) continue;
+      if (hp ? sat.prn !== hp : !enabledSystems[sat.system]) continue;
 
       // Elewacja z ECEF (zawsze)
       const ecef = computeGPSPosition(sat.eph, timeSec, true, false);
       const { el } = satElevAz(ecef.x, ecef.y, ecef.z, anim.obsLat, anim.obsLon, anim.obsAlt);
-      if (el < anim.obsMinElevation) continue;
+      if (!hp && el < anim.obsMinElevation) continue;
 
       // Wizualna pozycja satelity dopasowana do SatelliteMarker
       let sx: number, sy: number, sz: number;
@@ -90,8 +93,14 @@ export function SignalLines() {
     attr.needsUpdate = true;
     geomRef.current.setDrawRange(0, count * 2);
 
-    // Pulsowanie
-    matRef.current.opacity = 0.2 + 0.35 * Math.abs(Math.sin(timeSec * 1.5));
+    // Wyróżniony satelita: jaśniejsza, żółta linia; tryb ogólny: pulsujący cyjan
+    if (hp) {
+      matRef.current.color.set('#f7c948');
+      matRef.current.opacity = 0.55 + 0.35 * Math.abs(Math.sin(timeSec * 2));
+    } else {
+      matRef.current.color.set('#00d4ff');
+      matRef.current.opacity = 0.2 + 0.35 * Math.abs(Math.sin(timeSec * 1.5));
+    }
   });
 
   return (

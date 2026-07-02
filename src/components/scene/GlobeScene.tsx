@@ -25,7 +25,7 @@ import type { KeplerianEphemeris } from '../../types/ephemeris';
 function SceneController() {
   const { animating, animSpeed, timeHours, traceHours, setTimeHours } = useTimeStore();
   const { showHarmonics, useEcef, showSignalLines, showEnuAxes } = useUiStore();
-  const { enabled: obsEnabled, lat: obsLat, lon: obsLon, alt: obsAlt, minElevation } = useObserverStore();
+  const { enabled: obsEnabled, lat: obsLat, lon: obsLon, alt: obsAlt, minElevation, highlightedPrn } = useObserverStore();
 
   const frameCount = useRef(0);
 
@@ -44,6 +44,7 @@ function SceneController() {
   useEffect(() => { anim.obsMinElevation = minElevation; }, [minElevation]);
   useEffect(() => { anim.showSignalLines = showSignalLines; }, [showSignalLines]);
   useEffect(() => { anim.showEnuAxes = showEnuAxes; }, [showEnuAxes]);
+  useEffect(() => { anim.highlightedPrn = highlightedPrn; }, [highlightedPrn]);
 
   // Suwak UI → anim.timeSec (tylko gdy NIE animujemy i NIE live)
   useEffect(() => {

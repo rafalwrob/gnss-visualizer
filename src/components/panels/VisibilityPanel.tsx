@@ -6,7 +6,7 @@ import { computeGPSPosition } from '../../services/orbital/keplerMath';
 import { satElevAz, computeDOP, latLonAltToEcef } from '../../services/coordinates/ecefEnu';
 import { GNSS_SYSTEMS } from '../../constants/gnss';
 import { SkyPlot } from './SkyPlot';
-import type { SkyPlotArc } from './SkyPlot';
+import type { SkyPlotArc, ComputedMeas } from './SkyPlot';
 import { anim } from '../scene/animState';
 import type { GnssSystem } from '../../types/satellite';
 
@@ -17,8 +17,17 @@ const SYS_SHORT: Record<GnssSystem, string> = {
   qzss: 'QZS', navic: 'NAV', sbas: 'SBAS',
 };
 
-// GPS L1 carrier frequency for Doppler calculation
-const F0_GPS_L1 = 1575.42e6; // Hz
+/** Nominalna częstotliwość nośna głównego pasma cywilnego per system [Hz] */
+const CARRIER_FREQ: Record<GnssSystem, { f: number; band: string }> = {
+  gps:     { f: 1575.42e6,  band: 'L1 C/A' },
+  galileo: { f: 1575.42e6,  band: 'E1' },
+  glonass: { f: 1602.0e6,   band: 'L1OF' },   // FDMA, częstotliwość środkowa
+  beidou:  { f: 1575.42e6,  band: 'B1C' },
+  qzss:    { f: 1575.42e6,  band: 'L1 C/A' },
+  navic:   { f: 1176.45e6,  band: 'L5' },
+  sbas:    { f: 1575.42e6,  band: 'L1' },
+};
+
 const C = 299792458; // m/s
 
 interface VisibleSat {
@@ -27,8 +36,9 @@ interface VisibleSat {
   color: string;
   el: number;
   az: number;
-  rho: number;     // pseudorange [km]
-  doppler: number; // Doppler shift [Hz]
+  rho: number;       // odległość geometryczna [km]
+  doppler: number;   // przesunięcie Dopplera [Hz]
+  rangeRate: number; // prędkość radialna [m/s]
 }
 
 function dopColor(pdop: number): string {
@@ -41,7 +51,7 @@ function dopColor(pdop: number): string {
 export function VisibilityPanel() {
   const {
     enabled, lat, lon, alt, minElevation, allSats, systemStatus, fetchError,
-    enabledSystems, toggleSystem,
+    enabledSystems, toggleSystem, highlightedPrn, setHighlightedPrn,
   } = useObserverStore();
   const { showGroundTrack, setShowGroundTrack } = useUiStore();
 
@@ -89,17 +99,19 @@ export function VisibilityPanel() {
         let x2: number, y2: number, z2: number;
         if (useSGP4 && sat.satrec) {
           const pos2 = propagateSGP4(sat.satrec, new Date(date.getTime() + 1000));
-          if (!pos2) { list.push({ prn: sat.prn, system: sat.system, color: sat.color, el, az, rho, doppler: 0 }); continue; }
+          if (!pos2) { list.push({ prn: sat.prn, system: sat.system, color: sat.color, el, az, rho, doppler: 0, rangeRate: 0 }); continue; }
           ({ x: x2, y: y2, z: z2 } = pos2);
         } else {
           ({ x: x2, y: y2, z: z2 } = computeGPSPosition(sat.eph, timeSec + 1, true, false));
         }
         const dx2 = x2 - obsEcef.x, dy2 = y2 - obsEcef.y, dz2 = z2 - obsEcef.z;
         const rho2 = Math.sqrt(dx2 * dx2 + dy2 * dy2 + dz2 * dz2);
-        const dRdt = rho2 - rho1; // m/s (positive = receding)
-        const doppler = -(F0_GPS_L1 / C) * dRdt; // Hz
+        const rangeRate = rho2 - rho1; // m/s (dodatnia = oddala się)
+        // Doppler dla nominalnej nośnej danego systemu (nie zawsze GPS L1!)
+        const f0 = CARRIER_FREQ[sat.system]?.f ?? 1575.42e6;
+        const doppler = -(f0 / C) * rangeRate; // Hz
 
-        list.push({ prn: sat.prn, system: sat.system, color: sat.color, el, az, rho, doppler });
+        list.push({ prn: sat.prn, system: sat.system, color: sat.color, el, az, rho, doppler, rangeRate });
       }
       list.sort((a, b) => b.el - a.el);
       setVisibleList(list);
@@ -282,23 +294,35 @@ export function VisibilityPanel() {
                 <span className="text-right">El°</span>
                 <span className="text-right">Az°</span>
               </div>
-              {visibleList.map(s => (
-                <div key={s.prn} className="py-1 border-b border-[#1c2333]">
-                  <div className="grid items-center text-sm"
-                    style={{ gridTemplateColumns: '3.2rem 1fr 3rem 3rem' }}>
-                    <span className="font-bold font-mono" style={{ color: s.color }}>{s.prn}</span>
-                    <span className="text-xs text-[#6e7681]">{GNSS_SYSTEMS[s.system]?.name}</span>
-                    <span className="text-right text-[#e6edf3] font-mono">{s.el.toFixed(1)}°</span>
-                    <span className="text-right text-[#8b949e] font-mono">{s.az.toFixed(0)}°</span>
+              {visibleList.map(s => {
+                const isSel = highlightedPrn === s.prn;
+                return (
+                  <div
+                    key={s.prn}
+                    onClick={() => setHighlightedPrn(isSel ? null : s.prn)}
+                    className={`py-1 border-b cursor-pointer transition-colors rounded-sm px-1 -mx-1 ${
+                      isSel ? 'bg-[#f7c948]/10 border-[#f7c948]/40' : 'border-[#1c2333] hover:bg-[#161b22]'
+                    }`}
+                    title={isSel ? 'Kliknij, aby odznaczyć' : 'Kliknij — linia do satelity w 3D'}
+                  >
+                    <div className="grid items-center text-sm"
+                      style={{ gridTemplateColumns: '3.2rem 1fr 3rem 3rem' }}>
+                      <span className="font-bold font-mono flex items-center gap-1" style={{ color: s.color }}>
+                        {isSel && <span className="text-[#f7c948]">▸</span>}{s.prn}
+                      </span>
+                      <span className="text-xs text-[#6e7681]">{GNSS_SYSTEMS[s.system]?.name}</span>
+                      <span className="text-right text-[#e6edf3] font-mono">{s.el.toFixed(1)}°</span>
+                      <span className="text-right text-[#8b949e] font-mono">{s.az.toFixed(0)}°</span>
+                    </div>
+                    <div className="flex gap-4 pl-0.5 text-xs mt-0.5 text-[#484f58]">
+                      <span>ρ <span className="text-[#58a6ff]">{s.rho.toFixed(0)} km</span></span>
+                      <span>Δf <span className={s.doppler >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
+                        {s.doppler >= 0 ? '+' : ''}{s.doppler.toFixed(0)} Hz
+                      </span> <span className="text-[#30363d]">({CARRIER_FREQ[s.system]?.band})</span></span>
+                    </div>
                   </div>
-                  <div className="flex gap-4 pl-0.5 text-xs mt-0.5 text-[#484f58]">
-                    <span>ρ <span className="text-[#58a6ff]">{s.rho.toFixed(0)} km</span></span>
-                    <span>Δf <span className={s.doppler >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
-                      {s.doppler >= 0 ? '+' : ''}{s.doppler.toFixed(0)} Hz
-                    </span></span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
@@ -308,7 +332,7 @@ export function VisibilityPanel() {
         </div>
       )}
 
-      {/* Sky Plot */}
+      {/* Sky Plot — wybór PRN wspólny z listą (klik = linia w 3D + karta pomiarów) */}
       {enabled && visibleList.length > 0 && (
         <SkyPlot
           observations={visibleList.map(s => ({
@@ -319,6 +343,14 @@ export function VisibilityPanel() {
           }))}
           arcs={arcs}
           size={300}
+          selectedPrn={highlightedPrn}
+          onSelectPrn={setHighlightedPrn}
+          computed={Object.fromEntries(visibleList.map(s => [s.prn, {
+            rho: s.rho,
+            doppler: s.doppler,
+            rangeRate: s.rangeRate,
+            band: CARRIER_FREQ[s.system]?.band ?? 'L1',
+          } satisfies ComputedMeas]))}
         />
       )}
     </div>

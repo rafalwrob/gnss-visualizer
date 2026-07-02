@@ -17,6 +17,18 @@ export interface SkyPlotArc {
   points: { az: number; el: number }[];
 }
 
+/** Pomiary policzone z propagacji (tryb widoczności, bez odbiornika) */
+export interface ComputedMeas {
+  /** Odległość geometryczna [km] */
+  rho: number;
+  /** Przesunięcie Dopplera [Hz] */
+  doppler: number;
+  /** Etykieta pasma, np. "L1 C/A" */
+  band: string;
+  /** Prędkość radialna [m/s] (ujemna = zbliża się) */
+  rangeRate: number;
+}
+
 interface Props {
   /** Dane obserwacji — jeśli pominięte, czytane z receiverStore */
   observations?: SkyPlotObs[];
@@ -24,6 +36,11 @@ interface Props {
   arcs?: SkyPlotArc[];
   /** Rozmiar SVG w pikselach (domyślnie 320) */
   size?: number;
+  /** Kontrolowany wybór PRN (np. wspólny z listą widoczności) */
+  selectedPrn?: string | null;
+  onSelectPrn?: (prn: string | null) => void;
+  /** Pomiary z propagacji per PRN — pokazywane gdy brak pomiarów z odbiornika */
+  computed?: Record<string, ComputedMeas>;
 }
 
 function toXY(az: number, el: number, cx: number, cy: number, R: number): [number, number] {
@@ -48,7 +65,7 @@ function splitSegments(points: { az: number; el: number }[]): { az: number; el: 
   return segments;
 }
 
-function SatDetailCard({ prn, obs }: { prn: string; obs: SkyPlotObs }) {
+function SatDetailCard({ prn, obs, computed }: { prn: string; obs: SkyPlotObs; computed?: ComputedMeas }) {
   const measurements = useReceiverStore(s => s.recentMeasurements);
   const color = GNSS_SYSTEMS[obs.system]?.color ?? '#8b949e';
   const systemName = GNSS_SYSTEMS[obs.system]?.name ?? obs.system;
@@ -107,16 +124,18 @@ function SatDetailCard({ prn, obs }: { prn: string; obs: SkyPlotObs }) {
         </div>
       </div>
 
-      {/* C/N₀ */}
-      <div className="mb-2">
-        <div className="flex justify-between mb-0.5">
-          <span className="text-[#484f58]">C/N₀</span>
-          <span style={{ color: snrColor }} className="font-bold">{snr.toFixed(0)} dBHz</span>
+      {/* C/N₀ — tylko gdy są prawdziwe pomiary (nie zmyślamy siły sygnału) */}
+      {(obs.snr != null || satMeas.length > 0) && (
+        <div className="mb-2">
+          <div className="flex justify-between mb-0.5">
+            <span className="text-[#484f58]">C/N₀</span>
+            <span style={{ color: snrColor }} className="font-bold">{snr.toFixed(0)} dBHz</span>
+          </div>
+          <div className="h-1.5 bg-[#21262d] rounded overflow-hidden">
+            <div className="h-full rounded transition-all" style={{ width: `${snrPct}%`, backgroundColor: snrColor }} />
+          </div>
         </div>
-        <div className="h-1.5 bg-[#21262d] rounded overflow-hidden">
-          <div className="h-full rounded transition-all" style={{ width: `${snrPct}%`, backgroundColor: snrColor }} />
-        </div>
-      </div>
+      )}
 
       {/* Pomiary per pasmo */}
       {bandList.length > 0 && (
@@ -145,18 +164,47 @@ function SatDetailCard({ prn, obs }: { prn: string; obs: SkyPlotObs }) {
         </div>
       )}
 
-      {bandList.length === 0 && (
+      {/* Pomiary z propagacji (tryb widoczności — brak odbiornika) */}
+      {bandList.length === 0 && computed && (
+        <div className="bg-[#161b22] rounded-lg px-2 py-1.5 space-y-1">
+          <div className="flex items-center justify-between">
+            <span className="font-bold" style={{ color }}>{computed.band}</span>
+            <span className="text-[#484f58] text-[10px]">obliczone</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#484f58]">Odległość ρ</span>
+            <span className="text-[#58a6ff]">{computed.rho.toFixed(0)} km</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#484f58]">Doppler Δf</span>
+            <span className={computed.doppler >= 0 ? 'text-[#3fb950]' : 'text-[#f85149]'}>
+              {computed.doppler >= 0 ? '+' : ''}{computed.doppler.toFixed(0)} Hz
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-[#484f58]">Pręd. radialna</span>
+            <span className="text-[#8b949e]">
+              {computed.rangeRate >= 0 ? '+' : ''}{computed.rangeRate.toFixed(0)} m/s
+            </span>
+          </div>
+        </div>
+      )}
+
+      {bandList.length === 0 && !computed && (
         <div className="text-[#484f58] text-center py-1">brak pomiarów</div>
       )}
     </div>
   );
 }
 
-export function SkyPlot({ observations: propObs, arcs = [], size = 320 }: Props) {
+export function SkyPlot({ observations: propObs, arcs = [], size = 320, selectedPrn: ctrlSelected, onSelectPrn, computed }: Props) {
   const storeObs = useReceiverStore(s => s.recentObservations);
   const observations: SkyPlotObs[] = propObs ?? storeObs;
   const [hovered, setHovered] = useState<string | null>(null);
-  const [selectedPrn, setSelectedPrn] = useState<string | null>(null);
+  const [localSelected, setLocalSelected] = useState<string | null>(null);
+  // Tryb kontrolowany (wspólny stan z listą widoczności) lub lokalny
+  const selectedPrn = ctrlSelected !== undefined ? ctrlSelected : localSelected;
+  const setSelectedPrn = onSelectPrn ?? setLocalSelected;
 
   const CX = size / 2;
   const CY = size / 2;
@@ -298,7 +346,7 @@ export function SkyPlot({ observations: propObs, arcs = [], size = 320 }: Props)
       </div>
 
       {selectedObs && (
-        <SatDetailCard prn={selectedPrn!} obs={selectedObs} />
+        <SatDetailCard prn={selectedPrn!} obs={selectedObs} computed={computed?.[selectedPrn!]} />
       )}
     </div>
   );

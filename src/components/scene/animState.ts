@@ -21,6 +21,8 @@ export const anim = {
   obsLon: 21.0122,
   obsAlt: 100,
   obsMinElevation: 5,
+  /** PRN satelity wyróżnionego w trybie widoczności (linia obserwator→satelita) */
+  highlightedPrn: null as string | null,
   /** Unix ms odpowiadający timeSec=0 — do obliczania pozycji Słońca (terminator) */
   simulationOriginMs: Date.now(),
 };

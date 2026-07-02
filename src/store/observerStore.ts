@@ -29,6 +29,9 @@ interface ObserverState {
   /** Które konstelacje są widoczne (filtr wizualny) */
   enabledSystems: Record<GnssSystem, boolean>;
 
+  /** PRN satelity wyróżnionego kliknięciem (linia obserwator→satelita w 3D) */
+  highlightedPrn: string | null;
+
   /** Wszystkie satelity ze wszystkich konstelacji (CelesTrak live) */
   allSats: SatelliteRecord[];
   /** Stan pobierania per-system */
@@ -42,6 +45,7 @@ interface ObserverState {
   setAlt: (v: number) => void;
   setMinElevation: (v: number) => void;
   toggleSystem: (sys: GnssSystem) => void;
+  setHighlightedPrn: (prn: string | null) => void;
   setAllSats: (sats: SatelliteRecord[]) => void;
   setSystemStatus: (sys: GnssSystem, info: SystemFetchInfo) => void;
   setFetchError: (e: string) => void;
@@ -57,12 +61,13 @@ export const useObserverStore = create<ObserverState>((set) => ({
   minElevation: 5,
 
   enabledSystems: allEnabled(),
+  highlightedPrn: null,
 
   allSats: [],
   systemStatus: {},
   fetchError: '',
 
-  setEnabled: (v) => set({ enabled: v }),
+  setEnabled: (v) => set(v ? { enabled: v } : { enabled: v, highlightedPrn: null }),
   setIsFetching: (v) => set({ isFetching: v }),
   setLat: (v) => set({ lat: v }),
   setLon: (v) => set({ lon: v }),
@@ -70,9 +75,10 @@ export const useObserverStore = create<ObserverState>((set) => ({
   setMinElevation: (v) => set({ minElevation: v }),
   toggleSystem: (sys) =>
     set((s) => ({ enabledSystems: { ...s.enabledSystems, [sys]: !s.enabledSystems[sys] } })),
+  setHighlightedPrn: (prn) => set({ highlightedPrn: prn }),
   setAllSats: (sats) => set({ allSats: sats }),
   setSystemStatus: (sys, info) =>
     set((s) => ({ systemStatus: { ...s.systemStatus, [sys]: info } })),
   setFetchError: (e) => set({ fetchError: e }),
-  reset: () => set({ allSats: [], systemStatus: {}, fetchError: '', enabledSystems: allEnabled() }),
+  reset: () => set({ allSats: [], systemStatus: {}, fetchError: '', enabledSystems: allEnabled(), highlightedPrn: null }),
 }));
