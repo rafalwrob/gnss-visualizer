@@ -281,8 +281,8 @@ function DiagRaan({ data }: DiagramProps) {
       <text x={cx + 8} y={cy - 36} fill={P.purple} fontSize="9" fontFamily="monospace" fontWeight="bold">
         Ω = {(((data.Omega / DEG) % 360 + 360) % 360).toFixed(1)}°
       </text>
-      <text x={110} y={158} textAnchor="middle" fill={P.dim} fontSize="7.5" fontFamily="monospace">
-        w ECEF węzeł 'ucieka' na zachód z obrotem Ziemi (−ωₑ·t)
+      <text x={110} y={158} textAnchor="middle" fill={P.dim} fontSize="7" fontFamily="monospace">
+        węzeł dryfuje na zachód z obrotem Ziemi (−ωₑ·t)
       </text>
     </svg>
   );

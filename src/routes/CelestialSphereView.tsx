@@ -134,7 +134,7 @@ export function CelestialSphereView({ onBack }: { onBack: () => void }) {
           {/* Bieżąca data / pora roku */}
           <div className="bg-[#161b22] rounded-lg px-3 py-2 mb-2">
             <div className="text-[10px] font-mono" style={{ color: info.color }}>
-              {info.season || 'brak pory roku'}
+              {info.season || 'dzień roku'}
             </div>
             <div className="text-[#e6edf3] text-sm font-mono font-bold">{info.dateLabel}</div>
             <div className="text-[#484f58] text-[9px] font-mono">
